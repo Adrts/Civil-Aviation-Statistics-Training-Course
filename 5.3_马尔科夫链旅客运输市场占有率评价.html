@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5.3 基于马尔科夫链的旅客运输市场占有率评价</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+:root{
+  --blue:#4466EE;
+  --blue-dark:#1A2D6D;
+  --blue-soft:rgba(68,102,238,.10);
+  --blue-border:rgba(68,102,238,.22);
+  --text:#1E293B;
+  --text2:#475569;
+  --text3:#94A3B8;
+  --bg:#FFFFFF;
+  --bg2:#F6F8FC;
+  --line:rgba(30,41,59,.10);
+  --code-bg:#1E293B;
+  --code-fg:#E2E8F0;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#E8ECF2}
+body{font-family:"Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+
+/* ========== 编号规范（全篇统一，改动前请先读这一段） ==========
+   全篇三大板块：01 案例导入 / 02 原理说明 / 03 带入案例计算，深色章节页即板块页
+   章节号 / 页码 / 结尾要点号：两位补零阿拉伯数字 —— 01、03、22
+   小节号：小节点分，如 5.3.3；图表号用连字符，如表5-3-1、图5-3-1
+   步骤号：STEP 1 ~ STEP 6，仅用于 5.3.3 实证页，一条序列贯穿到底
+            （1 数据 → 2 保持概率 → 3 转向概率 → 4 初始占有率 → 5 短期预测 → 6 稳态分布）
+   推导号：推导 1/2/3，用于 5.3.2 的公式推导卡，与 STEP 序列区分
+   概念号 / 条目号：不补零阿拉伯数字，卡内一律用实心圆圈徽标 .no
+   公式编号：(1) (2) (3) …，正文引用同形，如"保留 (1)~(3)"
+   全篇禁用圈码 ①②③ 与"步骤N / 第N页"写法
+   同页不出现两套纵向序号；跨页引用一律写"上一页 / 下页"，不写绝对页码
+   ============================================================ */
+
+/* ========== 画布 ========== */
+#deck{position:fixed;top:50%;left:50%;width:1280px;height:720px;transform:translate(-50%,-50%) scale(1);background:var(--bg);color:var(--text);overflow:hidden;box-shadow:0 20px 80px rgba(20,40,80,.18),0 2px 12px rgba(20,40,80,.08);transform-origin:center center}
+
+/* ========== 幻灯片 ========== */
+.s{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .45s cubic-bezier(.25,.7,.2,1),visibility 0s linear .45s;overflow:hidden}
+.s.on{opacity:1;visibility:visible;z-index:2;transition:opacity .45s cubic-bezier(.25,.7,.2,1)}
+.s .a{opacity:0}.s.on .a{animation:up .55s ease both;animation-delay:calc(var(--d,60)*1ms)}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ========== 工具条 ========== */
+.bar{position:absolute;left:0;right:0;height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 76px;font-size:11px;color:var(--text3);z-index:20;pointer-events:none;letter-spacing:.04em}
+.bar-top{top:0;border-bottom:1px solid var(--line)}
+.bar-bot{bottom:0;border-top:1px solid var(--line)}
+.bar b{color:var(--blue);font-weight:600}
+.bar .pg{font-weight:700;font-variant-numeric:tabular-nums;color:var(--blue)}
+/* 深色页工具条反白 */
+#deck:has(.s.dark.on) .bar{color:rgba(255,255,255,.45)}
+#deck:has(.s.dark.on) .bar-top,#deck:has(.s.dark.on) .bar-bot{border-color:rgba(255,255,255,.12)}
+#deck:has(.s.dark.on) .bar b{color:rgba(255,255,255,.75)}
+#deck:has(.s.dark.on) .bar .pg{color:#fff}
+/* 封面页/结尾页隐藏工具条 */
+#deck:has(.s.cover.on) .bar{opacity:0;visibility:hidden}
+#deck:has(.s.end.on) .bar{opacity:0;visibility:hidden}
+
+/* ========== 圆点导航 ========== */
+.dots{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:6px;z-index:30}
+.dots button{width:8px;height:8px;border-radius:50%;border:1.2px solid rgba(68,102,238,.35);background:transparent;cursor:pointer;padding:0;transition:all .2s}
+.dots button:hover{border-color:var(--blue)}
+.dots button.on{background:var(--blue);border-color:var(--blue)}
+#deck:has(.s.dark.on) .dots button{border-color:rgba(255,255,255,.4)}
+#deck:has(.s.dark.on) .dots button.on{background:#fff;border-color:#fff}
+
+/* ========== 内容页骨架 ========== */
+.pg-s{display:flex;flex-direction:column;height:100%;padding:52px 76px 56px}
+.pg-h{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;margin-bottom:24px;flex-shrink:0}
+.pg-h .k{font-size:11.5px;letter-spacing:.2em;color:var(--blue);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.pg-h .k i{width:22px;height:2px;background:var(--blue);display:inline-block;font-style:normal}
+.pg-h h2{font-family:"Noto Serif SC",serif;font-size:32px;line-height:1.18;font-weight:700;color:var(--text)}
+.pg-h .lead{font-size:13px;line-height:1.7;color:var(--text2);max-width:48ch;text-align:right}
+.pg-b{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* 小标题 */
+.h3{font-family:"Noto Serif SC",serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.h3 .tag{font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--blue);background:var(--blue-soft);border:1px solid var(--blue-border);padding:2px 8px;border-radius:20px}
+
+/* 正文 */
+.body{font-size:15px;line-height:1.75;color:var(--text2)}
+.body b{color:var(--text);font-weight:600}
+.body .hl{color:var(--blue);font-weight:600}
+
+/* 卡片 */
+.card{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:14px 16px}
+.card.alt{background:var(--blue-soft);border-color:var(--blue-border)}
+.card.dark{background:var(--blue-dark);border-color:var(--blue-dark);color:#fff}
+.card.dark .h3{color:#fff}
+.card.dark .body{color:rgba(255,255,255,.82)}
+.card.dark .tag{color:#fff;border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.12)}
+
+/* 编号圆 */
+.no{width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.no.outline{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+
+/* ========== 表格 ========== */
+table{border-collapse:collapse;width:100%;font-size:13.5px;color:var(--text)}
+th{font-size:11px;font-weight:600;color:var(--text2);border-bottom:1.5px solid var(--blue);padding:7px 8px;text-align:center;background:var(--blue-soft);letter-spacing:.03em}
+th.rl{text-align:left}
+td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums}
+td.rl{text-align:left;font-weight:600;white-space:nowrap}
+td .b{color:var(--blue);font-weight:700}
+tr.hl td{background:var(--blue-soft)}
+.cap{font-size:11px;color:var(--text3);margin-top:6px}
+
+/* 公式块 */
+.formula{display:inline-flex;align-items:center;gap:8px;background:var(--blue-soft);border:1px solid var(--blue-border);border-radius:6px;padding:6px 14px;font-size:15px;color:var(--text)}
+
+/* 代码块 */
+pre{background:var(--code-bg);color:var(--code-fg);border-radius:8px;padding:14px 18px;font-size:12px;line-height:1.75;font-family:Consolas,"Cascadia Mono",ui-monospace,monospace;overflow:hidden;white-space:pre}
+pre .c{color:#7E9BC0}
+pre .kw{color:#8FD0A0}
+pre .n{color:#F2C063}
+
+/* ========== 章节页（深色） ========== */
+.s.dark{background:var(--blue-dark)!important}
+.div{height:100%;padding:52px 76px;display:flex;flex-direction:column}
+.div-top{font-size:11px;letter-spacing:.3em;color:rgba(255,255,255,.5);font-weight:600;display:flex;align-items:center;gap:10px}
+.div-top i{width:26px;height:1.5px;background:rgba(255,255,255,.5);display:inline-block;font-style:normal}
+.div-mid{flex:1;display:flex;align-items:flex-end;justify-content:space-between;gap:48px;padding-bottom:40px}
+.div-mid h2{font-family:"Noto Serif SC",serif;font-size:56px;line-height:1.15;font-weight:900;color:#fff}
+.div-mid .en{writing-mode:vertical-rl;letter-spacing:.4em;font-size:12px;color:rgba(255,255,255,.45);font-weight:600}
+.div-bot{font-size:12px;color:rgba(255,255,255,.4);letter-spacing:.08em}
+.gh{position:absolute;right:-30px;bottom:-100px;font-size:380px;font-weight:900;color:rgba(255,255,255,.045);line-height:1;pointer-events:none;font-family:Georgia,serif;letter-spacing:-.04em}
+
+/* ========== 封面 ========== */
+.s.cover{padding:0 76px 48px;display:flex;flex-direction:column}
+.cv-top{display:flex;justify-content:space-between;padding-top:32px;font-size:12px;color:var(--text3);font-weight:500;letter-spacing:.1em}
+.cv-mid{flex:1;display:flex;flex-direction:column;justify-content:center}
+.cv-mid .k{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:600;letter-spacing:.22em;color:var(--blue);margin-bottom:20px}
+.cv-mid .k i{width:28px;height:2px;background:var(--blue);display:inline-block;font-style:normal}
+.cv-mid h1{font-family:"Noto Serif SC",serif;font-size:54px;line-height:1.15;font-weight:900;color:var(--text)}
+.cv-mid .sub{margin-top:20px;font-size:14px;line-height:1.9;color:var(--text2);max-width:60ch}
+.cv-bot{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);gap:28px;padding:20px 0 0;align-items:start}
+.cv-bot .lb{font-size:10px;letter-spacing:.2em;color:var(--text3);font-weight:600;margin-bottom:6px}
+.cv-bot .vl{font-size:13px;color:var(--text);font-weight:500;line-height:1.5}
+
+/* ========== 结尾页 ========== */
+.s.end{display:grid;grid-template-columns:1fr 1fr;padding:0}
+.end-l{background:var(--blue-dark);padding:48px 44px 48px 76px;display:flex;flex-direction:column;justify-content:space-between}
+.end-l .et{font-size:10px;letter-spacing:.28em;color:rgba(255,255,255,.5);font-weight:600}
+.end-l h2{font-family:"Noto Serif SC",serif;font-size:80px;font-weight:900;color:#fff;line-height:1.08}
+.end-l .es{margin-top:12px;font-size:12px;letter-spacing:.3em;color:rgba(255,255,255,.5);font-weight:600}
+.end-l .sig{font-size:11px;color:rgba(255,255,255,.45);line-height:1.7}
+.end-l .sig b{color:rgba(255,255,255,.8)}
+.end-r{padding:48px 76px 48px 44px;display:flex;flex-direction:column}
+.end-r .et2{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.24em;color:var(--text3);font-weight:600}
+.end-r .tks{margin-top:24px;flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.tk{display:grid;grid-template-columns:40px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.tk:last-child{border-bottom:none}
+.tk .n{font-size:28px;font-weight:200;color:var(--blue);font-family:Georgia,serif;line-height:1.1}
+.tk h4{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.tk p{font-size:12px;line-height:1.75;color:var(--text2)}
+.end-r .ft{font-size:11px;letter-spacing:.2em;color:var(--text3);font-weight:600}
+.end-r .ft i{width:22px;height:1.5px;background:var(--blue);display:inline-block;vertical-align:middle;margin-right:8px;font-style:normal}
+
+/* ========== 流程图 ========== */
+.flow{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:nowrap}
+.flow .step{background:var(--blue-soft);border:1px solid var(--blue-border);border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--blue);text-align:center;white-space:nowrap}
+.flow .arr{color:var(--blue);font-size:16px;font-weight:700}
+
+/* 转移示例图 */
+.transfer-diagram{display:flex;align-items:center;justify-content:center;padding:10px 0}
+.transfer-diagram .node{width:64px;height:64px;border-radius:50%;border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--blue);background:var(--bg);position:relative;flex-shrink:0}
+.transfer-diagram .node.self{background:var(--blue);color:#fff}
+.transfer-diagram .links{display:flex;flex-direction:column;align-items:center;margin:0 4px;font-size:10px;color:var(--text2)}
+.transfer-diagram .links .arr-line{width:50px;height:1px;background:var(--blue);position:relative}
+.transfer-diagram .links .arr-line::after{content:"";position:absolute;right:-1px;top:-4px;border:4px solid transparent;border-left:6px solid var(--blue)}
+
+/* 步骤列表 */
+.steps{display:flex;flex-direction:column;gap:0}
+.stp{display:grid;grid-template-columns:40px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);align-items:start}
+.stp:last-child{border-bottom:none}
+.stp h4{font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px}
+.stp p{font-size:13px;line-height:1.7;color:var(--text2)}
+
+/* ========== 页面留白优化 ========== */
+.bsep{height:1px;background:var(--line);margin:12px 0}
+.chiprow{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.chiprow .cl{font-size:11.5px;color:var(--text3);letter-spacing:.08em;margin-right:4px;white-space:nowrap}
+.chiprow .ch{font-size:12.5px;font-weight:600;color:var(--text);background:var(--blue-soft);border:1px solid var(--blue-border);border-radius:20px;padding:5px 12px;white-space:nowrap}
+.band{grid-column:1/-1;display:flex;align-items:center;gap:14px;border:1px solid var(--blue-border);background:linear-gradient(90deg,var(--blue-soft),rgba(255,255,255,.5));border-radius:10px;padding:12px 18px}
+.band .bt{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--blue);display:flex;align-items:center;gap:8px;white-space:nowrap;border-right:1px solid var(--blue-border);padding-right:14px;flex-shrink:0}
+.band .bt i{width:20px;height:2px;background:var(--blue);display:inline-block;font-style:normal}
+.band .bc{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text2);line-height:1.75;min-width:0}
+.band .bc .mono{font-family:Georgia,"Times New Roman",serif;font-style:italic;color:var(--text);background:rgba(255,255,255,.75);border:1px solid var(--blue-border);border-radius:5px;padding:2px 9px;font-size:13px}
+.band .bc .hl2{color:var(--blue);font-weight:700}
+.fx{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap}
+.fx .fs{background:var(--bg);border:1px solid var(--blue-border);border-radius:6px;padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--blue);white-space:nowrap}
+.fx .fa{color:var(--blue);font-size:14px;font-weight:700}
+
+/* S3 */
+.pg3 .pg-b{grid-template-rows:1fr auto}
+.pg3 .pg-b>.card{display:flex;flex-direction:column;padding:22px 26px;min-height:0}
+.pg3 .pg-b>.card .h3{font-size:20px;margin-bottom:12px}
+.pg3 .pg-b>.card .body{font-size:16px;line-height:1.85}
+.pg3 .flow{margin-top:auto}
+.pg3 .c1{justify-content:space-between}
+.pg3 .c2{justify-content:center;gap:14px}
+
+/* S5 微调 */
+.pg5 .card{padding:16px 18px;display:flex;flex-direction:column;justify-content:space-between}
+.pg5 .body{font-size:16px;line-height:1.85}
+.pg5 .formula{font-size:16px}
+.pg5 .pg-b{gap:14px}
+
+/* S7 */
+.pg7 .pg-b{grid-template-rows:1fr auto}
+.pg7 .pg-b>.card{display:flex;flex-direction:column;justify-content:space-between;padding:20px 24px;min-height:0}
+.pg7 .card .body{font-size:16px;line-height:1.85}
+.pg7 .card .h3{font-size:19px;margin-bottom:8px}
+.pg7 .card.alt2{justify-content:space-between}
+
+/* S8 */
+.pg8 .pg-b{grid-template-rows:1fr auto}
+.pg8 .pg-b>.card{display:flex;flex-direction:column;justify-content:space-between;padding:20px 24px;min-height:0}
+.pg8 .card .body{font-size:16px;line-height:1.85}
+.pg8 .card .h3{font-size:19px;margin-bottom:8px}
+.pg8 .formula{font-size:16px}
+
+/* S10 */
+.pg10 .pg-b{grid-template-rows:1fr}
+.pg10 .pg-b>div{min-height:0;justify-content:space-evenly}
+.pg10 .pg-b>div:first-child{justify-content:flex-start}
+.pg10 .steps{flex:1;justify-content:space-evenly}
+.pg10 .stp{padding:12px 0;grid-template-columns:46px 1fr}
+.pg10 .stp h4{font-size:16px;margin-bottom:4px}
+.pg10 .stp p{font-size:14px;line-height:1.8}
+.pg10 .card{padding:16px 18px}
+.pg10 .card .body{font-size:13.5px;line-height:1.8}
+.pg10 .transfer-diagram .node{width:76px;height:76px;font-size:19px}
+.pg10 .transfer-diagram{padding:8px 0}
+
+/* S12 */
+.pg12 .pg-b{grid-template-rows:auto 1fr}
+.pg12 .pg-b>.card{display:flex;flex-direction:column;padding:20px 24px;min-height:0}
+.pg12 .pg-b>.card:nth-child(3){justify-content:space-between}
+
+/* S18 短期预测（R 语言实现）：右栏结果卡与脚注纵向铺满，避免底部空档 */
+.pg-fc .pg-b>div:last-child{justify-content:space-evenly}
+
+/* S14 */
+.pg14 .pg-b{grid-template-rows:1fr}
+.pg14 .pg-b>div,.pg14 .pg-b>.card{min-height:0}
+.pg14 .pg-b>div{display:flex;flex-direction:column;justify-content:flex-start;gap:16px}
+.pg14 .pg-b>div>.card{flex:1;display:flex;flex-direction:column;justify-content:space-between}
+.pg14 .pg-b>.card{display:flex;flex-direction:column;justify-content:center}
+.pg14 .card .h3{font-size:18px}
+.pg14 .card .body{font-size:14px;line-height:1.8}
+.pg14 .card .formula{font-size:14.5px}
+.pg14 table th{padding:9px 8px}
+.pg14 table td{padding:11px 8px}
+
+/* S15 */
+.pg15 .pg-b{grid-template-rows:1fr}
+.pg15 .pg-b>div,.pg15 .pg-b>.card{min-height:0}
+.pg15 .pg-b>div{display:flex;flex-direction:column;justify-content:space-between}
+.pg15 .card.alt{justify-content:center}
+
+/* S17 */
+.pg17 .pg-b{grid-template-rows:1fr}
+.pg17 .pg-b>div,.pg17 .pg-b>.card{min-height:0}
+.pg17 .pg-b>div{display:flex;flex-direction:column;justify-content:space-between}
+.pg17 .pg-b>.card{display:flex;flex-direction:column;justify-content:space-between}
+.pg17 table th{padding:9px 8px}
+.pg17 table td{padding:10px 8px}
+
+/* S18 */
+.pg18 .card{display:flex;flex-direction:column;justify-content:space-evenly;padding:22px 30px}
+.pg18 .card .body{font-size:17px;line-height:1.95}
+.pg18 .flow{margin-top:16px;gap:8px}
+.pg18 .flow .step{font-size:13.5px;padding:9px 16px}
+
+/* 稳态分布求解（原理页） */
+.pg-eq .pg-b{grid-template-rows:1fr auto}
+.pg-eq .pg-b>.card{display:flex;flex-direction:column;justify-content:space-between;padding:18px 20px;min-height:0}
+.pg-eq .card .h3{font-size:17px;margin-bottom:8px}
+.pg-eq .card .body{font-size:13.5px;line-height:1.8}
+.pg-eq .card .no{width:22px;height:22px;font-size:10px}
+.pg-eq .steps{flex:1;justify-content:space-evenly}
+.pg-eq .steps .stp{padding:6px 0;grid-template-columns:32px 1fr}
+.pg-eq .steps .stp h4{font-size:14px;margin-bottom:3px}
+.pg-eq .steps .stp p{font-size:12.5px;line-height:1.65}
+
+/* 稳态分布计算（案例页） */
+.pg-sm .pg-b>div{min-height:0}
+.pg-sm .pg-b>.card{min-height:0}
+.pg-sm .card{padding:14px 16px}
+.pg-sm .card .h3{font-size:17px;margin-bottom:6px}
+.pg-sm .card .body{font-size:13.5px;line-height:1.8}
+.pg-sm table th{padding:5px 8px}
+.pg-sm table td{padding:5px 8px}
+
+/* 转移矩阵逐行计算明细页 */
+.pg-dt .pg-b{gap:12px}
+.pg-dt .card{padding:13px 16px}
+.pg-dt .card .h3{font-size:17px;margin-bottom:6px}
+.pg-dt .card .body{font-size:12.5px;line-height:1.8}
+.pg-dt table{font-size:11.5px}
+.pg-dt table th{padding:6px 6px}
+.pg-dt table td{padding:7px 6px}
+.pg-dt .formula{font-size:12.5px;padding:5px 11px}
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+<!-- ===== S1 封面 ===== -->
+<section class="s cover on">
+  <div class="cv-top a" style="--d:0"><span><b>民航决策优化案例</b> · CASE 5.3</span><span>第5章 决策分析</span></div>
+  <div class="cv-mid">
+    <span class="k a" style="--d:80"><i></i>MARKOV CHAIN · MARKET SHARE</span>
+    <h1 class="a" style="--d:200">5.3 基于马尔科夫链的<br>旅客运输市场占有率评价</h1>
+    <p class="sub a" style="--d:340">以某省2009—2010年旅客流动数据为案例，按<b>"案例导入 → 原理说明 → 带入案例计算"</b>三部分展开：先提出问题，再讲解马尔科夫链核心原理，最后代入数据预测短期市场格局与长期稳态分布，为运输营销策略提供决策依据。</p>
+  </div>
+  <div class="cv-bot a" style="--d:460">
+    <div><div class="lb">案例来源</div><div class="vl">决策分析案例 5.3</div></div>
+    <div><div class="lb">分析方法</div><div class="vl">马尔科夫分析法</div></div>
+    <div><div class="lb">研究对象</div><div class="vl">航空 / 铁路 / 公路 / 水路</div></div>
+    <div><div class="lb">汇报人</div><div class="vl">唐瑛健 阿义肯</div></div>
+  </div>
+</section>
+
+<!-- ===== S2 章节页01：案例导入 ===== -->
+<section class="s dark">
+  <div class="div">
+    <div class="gh" aria-hidden="true">01</div>
+    <div class="div-top a" style="--d:0"><i></i>PART 01 · 案例导入</div>
+    <div class="div-mid">
+      <h2 class="a" style="--d:160">案例导入<br>某省旅客运输市场</h2>
+      <span class="en a" style="--d:280">CASE INTRODUCTION</span>
+    </div>
+    <div class="div-bot a" style="--d:360">提出问题 — 为什么要用马尔科夫分析旅客市场占有率</div>
+  </div>
+</section>
+
+<!-- ===== S3 核心问题与研究目标 ===== -->
+<section class="s pg3">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.1 · 案例导入</div><h2>案例：某省旅客运输市场占有率评价</h2></div>
+      <p class="lead a" style="--d:140">要预测的问题：某省2011年航空 / 铁路 / 公路 / 水路四种运输方式的市场占有率</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div class="card a c1" style="--d:180">
+        <div class="h3"><span class="no">1</span>核心问题</div>
+        <p class="body">综合交通运输市场中，旅客出行方式选择复杂，需要揭示市场构成因素及数理内涵。</p>
+        <div class="chiprow">
+          <span class="cl">旅客关注的核心因素</span>
+          <span class="ch">价格</span><span class="ch">速度</span><span class="ch">舒适度</span><span class="ch">安全性</span>
+        </div>
+        <div class="bsep"></div>
+        <p class="body">这些因素都会影响运输企业的竞争力和客户满意度，其综合作用使旅客在不同运输方式之间的流动呈现<b>动态变化</b>的特征。</p>
+      </div>
+      <div class="card a c2" style="--d:300">
+        <div class="h3"><span class="no">2</span>研究目标</div>
+        <p class="body">对铁路、公路、水路和航空等多种运输方式下旅客流动变化的趋势与规律进行分析，<b>采用马尔科夫分析法</b>对交通运输市场的旅客流动变化进行科学预测，为交通运输部门<b>调整运输营销策略提供决策依据</b>。</p>
+        <div class="chiprow">
+          <span class="cl">研究路径</span>
+          <span class="ch">历史数据采集</span>
+          <span class="ch">构建转移矩阵</span>
+          <span class="ch">递推预测</span>
+          <span class="ch">决策依据</span>
+        </div>
+      </div>
+      <div class="band a" style="--d:440">
+        <span class="bt"><i></i>研究对象</span>
+        <div class="bc"><span class="mono">A</span>航空&ensp;·&ensp;<span class="mono">B</span>铁路&ensp;·&ensp;<span class="mono">C</span>公路&ensp;·&ensp;<span class="mono">D</span>水路 —— 四种运输方式构成的市场状态空间，旅客客流在不同方式间相互转移</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S4 章节页02：原理说明 ===== -->
+<section class="s dark">
+  <div class="div">
+    <div class="gh" aria-hidden="true">02</div>
+    <div class="div-top a" style="--d:0"><i></i>PART 02 · 原理说明</div>
+    <div class="div-mid">
+      <h2 class="a" style="--d:160">原理说明<br>马尔科夫分析法</h2>
+      <span class="en a" style="--d:280">PRINCIPLE</span>
+    </div>
+    <div class="div-bot a" style="--d:360">核心定义 — 状态转移概率 · 转移矩阵 · 稳态分布</div>
+  </div>
+</section>
+
+<!-- ===== S5 核心定义 ===== -->
+<section class="s pg5">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.2 · 核心定义</div><h2>一步状态转移概率 · k步状态转移概率 · 概率约束</h2></div>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1fr;grid-template-rows:auto auto auto;gap:14px;align-content:space-evenly">
+      <div class="card a" style="--d:160">
+        <div class="h3"><span class="no">1</span>一步状态转移概率</div>
+        <p class="body">在 $t$ 时刻系统 $X_t$ 从状态 $i$ 转移到下一时刻状态 $j$ 的<b>条件概率</b>：</p>
+        <div style="display:flex;gap:16px;margin:6px 0;flex-wrap:wrap;align-items:center">
+          <span class="formula">符号：$P(X_{t+1}=j \mid X_t=i)$，简写 $P_{ij}$</span>
+          <span class="formula">表达式：$P_{ij} = P(X_{t+1}=j \mid X_t=i)$</span>
+        </div>
+      </div>
+      <div class="card a" style="--d:300">
+        <div class="h3"><span class="no">2</span>k步状态转移概率</div>
+        <p class="body">在 $t$ 时刻从状态 $i$ 转移到 $t{+}k$ 时刻状态 $j$ 的条件概率（经过 $k$ 个单位时间）：</p>
+        <div style="display:flex;gap:12px;margin:6px 0;flex-wrap:wrap;align-items:center">
+          <span class="formula" style="font-size:13px">$P(X_{t+k}=j \mid X_t=i)$，简写 $P_{ij}^{(k)}$</span>
+        </div>
+        <p class="body" style="margin-top:2px">表达式：$P_{ij}^{(k)} = P(X_{t+k}=j \mid X_t=i)$</p>
+      </div>
+      <div class="card a" style="--d:440">
+        <div class="h3"><span class="no">3</span>概率约束条件</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+          <span class="formula" style="font-size:13px">所有状态转移概率非负：$0 \leq P_{ij} \leq 1$，$0 \leq P_{ij}^{(k)} \leq 1$</span>
+          <span class="formula" style="font-size:13px">转移矩阵每行概率之和为 1：$\sum_{j} P_{ij} = 1$，$\sum_{j} P_{ij}^{(k)} = 1$</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S7 转移矩阵与正规概率矩阵 ===== -->
+<section class="s pg7">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.2 · 关键概念 1–2</div><h2>k步转移矩阵与正规概率矩阵</h2></div>
+      <p class="lead a" style="--d:140">n个状态 → n×n 矩阵，行和为 1</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.1fr .9fr;gap:18px">
+      <div class="card a" style="--d:200">
+        <div class="h3"><span class="no">1</span>k步转移矩阵 $P^{(k)}$</div>
+        <p class="body">系统含 $n$ 个状态时，由所有 $k$ 步转移概率 $P_{ij}^{(k)}$ 构成的 $n \times n$ 矩阵，记为 $P^{(k)}$；下图为本案例的 $4 \times 4$ 一步转移矩阵 $P$：</p>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 0 10px">
+          <span style="font-size:16px;color:var(--blue);font-weight:700;font-style:italic">$P$ =</span>
+          <span style="border-left:2px solid var(--blue);border-right:2px solid var(--blue);padding:10px 24px;font-size:15px;line-height:2.05;font-family:serif;font-style:italic">
+            $P_{AA}$&ensp;$P_{AB}$&ensp;$P_{AC}$&ensp;$P_{AD}$<br>
+            $P_{BA}$&ensp;$P_{BB}$&ensp;$P_{BC}$&ensp;$P_{BD}$<br>
+            $P_{CA}$&ensp;$P_{CB}$&ensp;$P_{CC}$&ensp;$P_{CD}$<br>
+            $P_{DA}$&ensp;$P_{DB}$&ensp;$P_{DC}$&ensp;$P_{DD}$
+          </span>
+        </div>
+        <p class="body" style="font-size:13px;text-align:center;margin-top:4px"><b>特殊形式：</b>一步转移矩阵（$k=1$），简记为 $P$</p>
+      </div>
+      <div class="card a alt2" style="--d:320">
+        <div class="h3"><span class="no">2</span>正规概率矩阵</div>
+        <span class="formula" style="margin:6px 0 12px;font-size:14px">$\exists\, m > 0$，使 $P_{ij}^{(m)} > 0$ 对所有 $i,j$ 成立</span>
+        <p class="body">存在正整数 $m$，使得矩阵 $P^{(m)}$ 中所有元素均大于 0。</p>
+        <div class="bsep" style="margin:2px 0 0"></div>
+        <p class="body"><b>意义：</b>保证马尔科夫链长期演化后<b>收敛到唯一的稳态分布</b>——这是后续求解平衡向量 $S^{*}$ 的前提。</p>
+      </div>
+      <div class="band a" style="--d:520">
+        <span class="bt"><i></i>逻辑链条</span>
+        <div class="bc">
+          <div class="fx">
+            <span class="fs">转移矩阵 P</span><span class="fa">→</span>
+            <span class="fs">正规概率矩阵</span><span class="fa">→</span>
+            <span class="fs">长期演化收敛</span>
+          </div>
+          <span>确保收敛到<b class="hl2">唯一稳态分布</b> —— 这也是后续求解平衡向量 $S^{*}$ 的前提</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S8 状态概率向量与平衡向量 ===== -->
+<section class="s pg8">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.2 · 关键概念 3–4</div><h2>状态概率向量与平衡向量</h2></div>
+      <p class="lead a" style="--d:140">从"状态概率向量"递推到"稳态分布"</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div class="card a" style="--d:200">
+        <div class="h3"><span class="no">3</span>状态概率向量</div>
+        <p class="body">记 $S_i(t) = P(X_t = i)$ 为系统在 $t$ 时刻处于状态 $i$ 的概率，则 $t$ 时刻的状态概率向量为：</p>
+        <div style="text-align:center;margin:8px 0"><span class="formula">$S(t) = [S_1(t),\, S_2(t),\, \dots,\, S_n(t)]$</span></div>
+        <p class="body"><b>初始状态向量：</b>$t=0$ 时的状态概率向量，记为 $S(0) = [S_1(0),\, S_2(0),\, \dots,\, S_n(0)]$。本案例 $n=4$，四种运输方式的<b>市场占有率向量</b>即 $S(t) = [S_A(t),\, S_B(t),\, S_C(t),\, S_D(t)]$。</p>
+        <div class="bsep"></div>
+        <p class="body"><b>递推关系（核心公式）：</b>由马尔科夫链性质及全概率公式推导，$t$ 时刻向量与 $t{-}1$ 时刻向量满足：</p>
+        <div style="text-align:center;margin:4px 0"><span class="formula" style="font-size:18px">$S(t) = S(t-1) \cdot P$</span></div>
+      </div>
+      <div class="card a" style="--d:340">
+        <div class="h3"><span class="no">4</span>平衡向量</div>
+        <p class="body"><b>定义：</b>存在非零行向量 $S$，满足 $S \cdot P = S$（即向量与转移矩阵相乘后保持不变）。</p>
+        <div style="text-align:center;margin:10px 0"><span class="formula" style="font-size:18px">$S \cdot P = S$</span></div>
+        <p class="body"><b>固有概率向量：</b>若平衡向量满足归一化条件 $\sum_{i=1}^{n} S_i = 1$，则称 $S$ 为固有概率向量，即系统的<b>稳态分布</b> $S^{*}$，对应长期稳定后的市场占有率。</p>
+        <div class="bsep"></div>
+        <p class="body"><b>极限收敛（推广）：</b>$S(t) = S(0) \cdot P^{t}$，当 $t \to \infty$ 时 $S(t) \to S^{*}$，且与初始状态 $S(0)$ 无关。</p>
+      </div>
+      <div class="band a" style="--d:540">
+        <span class="bt"><i></i>演化路径</span>
+        <div class="bc">
+          <span class="mono">$S(0)$</span><span class="fa">→</span>
+          <span class="mono">$S(1)=S(0)P$</span><span class="fa">→</span>
+          <span class="mono">$\cdots$</span><span class="fa">→</span>
+          <span class="mono">$S(k)=S(0)P^{k}$</span><span class="fa">→</span>
+          <span class="mono">$k\to\infty$</span><span class="fa">→</span>
+          <span class="mono">$S^{*}$</span>
+          <span>—— 稳态分布 $S^{*}$ 满足 <span class="mono">$S^{*}P=S^{*}$</span>，即前文的<b class="hl2">平衡向量（固有概率向量）</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S9 稳态分布的求解方法（原理） ===== -->
+<section class="s pg-eq">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.2 · 求解方法</div><h2>稳态分布 $S^{*}$ 的求解方法</h2></div>
+      <p class="lead a" style="--d:140">平衡方程 $S P = S$ + 归一化条件 → 唯一稳态分布</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.06fr .94fr;gap:16px">
+      <div class="card a" style="--d:180">
+        <div class="h3"><span class="tag">推导</span>把 $S P = S$ 展开成线性方程组</div>
+        <p class="body">设 $S = (S_1, S_2, \dots, S_n)$，由平衡方程 $S P = S$ 移项得 $S(P - I) = 0$，即 $(P^{\mathrm{T}} - I)S^{\mathrm{T}} = 0$；按分量写出：</p>
+        <div style="text-align:center;margin:6px 0"><span class="formula">$\sum_{i=1}^{n} S_i P_{ij} = S_j \quad (j = 1, 2, \dots, n)$</span></div>
+        <div class="bsep"></div>
+        <p class="body"><b>为何必须补归一化条件：</b>由于 $P$ 的每一行元素之和为 1，矩阵 $P^{\mathrm{T}} - I$ 的秩只有 $n-1$，$n$ 个平衡方程中仅有 $n-1$ 个独立，单独求解只能得到一条解直线；再联立 $\sum_{i=1}^{n} S_i = 1$，解才唯一。</p>
+      </div>
+      <div class="card a alt2" style="--d:300">
+        <div class="h3"><span class="tag">步骤</span>四步求解流程</div>
+        <div class="steps">
+          <div class="stp"><span class="no">1</span><div><h4>写出平衡方程</h4><p>按 $\sum_{i} S_i P_{ij} = S_j$ 展开，共 $n$ 个方程。</p></div></div>
+          <div class="stp"><span class="no">2</span><div><h4>替换冗余方程</h4><p>舍去其中任一冗余方程，用 $\sum_{i} S_i = 1$ 补位，凑成 $n$ 元方程组。</p></div></div>
+          <div class="stp"><span class="no">3</span><div><h4>解线性方程组</h4><p>手算消元，或用矩阵求逆（R 中 <b>solve()</b>）直接求解。</p></div></div>
+          <div class="stp"><span class="no">4</span><div><h4>回代验证</h4><p>检验 $S^{*}P = S^{*}$ 且 $\sum_{i} S_i^{*} = 1$。</p></div></div>
+        </div>
+      </div>
+      <div class="band a" style="--d:460">
+        <span class="bt"><i></i>二状态算例</span>
+        <div class="bc">
+          <span>$P = \begin{bmatrix} 0.8 & 0.2 \\ 0.3 & 0.7 \end{bmatrix}$</span>
+          <span class="fa">→</span>
+          <span>由 $S_1 = 0.8S_1 + 0.3S_2$ 得 $0.2S_1 = 0.3S_2$</span>
+          <span class="fa">+</span>
+          <span>$S_1 + S_2 = 1$</span>
+          <span class="fa">→</span>
+          <span class="hl2">$S^{*} = (0.6,\ 0.4)$</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S11 建模步骤与状态转移示例 ===== -->
+<section class="s pg10">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.2 · 建模流程</div><h2>应用马尔科夫分析法建模预测的3个步骤</h2></div>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.1fr .9fr;gap:22px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="steps a" style="--d:180">
+          <div class="stp"><span class="no">1</span><div><h4>选定预测的市场对象，进行市场调研</h4><p>确定被预测的市场（如某省旅客运输市场）与状态划分（四种运输方式），收集历史旅客流动数据，为建立转移矩阵做准备。</p></div></div>
+          <div class="stp"><span class="no">2</span><div><h4>建立转移矩阵</h4><p>在马尔科夫分析法中，以 $S_i(t)$ 表示系统在 $t$ 时刻处于状态 $i\,(i=1,2,\dots,n)$ 的概率，则有 $\sum_{i=1}^{n} S_i(t) = 1$；初始状态向量为 $S(0) = (S_1(0), S_2(0), \dots, S_n(0))$，一般 $t$ 时刻的状态概率向量为 $S(t) = (S_1(t), S_2(t), \dots, S_n(t))$（本案例中即市场占有率向量）。由马尔科夫链的性质及全概率公式有：$$S_j(t+1) = \sum_{i=1}^{n} S_i(t) \cdot P_{ij}$$</p></div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card a" style="--d:320">
+          <div class="h3"><span class="tag">STATE TRANSFER</span>状态转移示例图（图5-3-1）</div>
+          <p class="body" style="font-size:12px;margin-bottom:10px">四种运输方式之间的客流转移关系：</p>
+          <div class="transfer-diagram">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div class="node self">A</div><div style="font-size:9px;color:var(--text3)">航空</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--blue);font-weight:600;padding:0 6px"><span>$P_{AB}$</span><span style="font-size:14px">→</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div class="node">B</div><div style="font-size:9px;color:var(--text3)">铁路</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--blue);font-weight:600;padding:0 6px"><span>$P_{BC}$</span><span style="font-size:14px">→</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div class="node">C</div><div style="font-size:9px;color:var(--text3)">公路</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--blue);font-weight:600;padding:0 6px"><span>$P_{CD}$</span><span style="font-size:14px">→</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><div class="node">D</div><div style="font-size:9px;color:var(--text3)">水路</div></div>
+          </div>
+          <p class="body" style="font-size:11px;text-align:center;margin-top:6px">$P_{AA}$ = 保持概率（对角元） · $P_{AB}$ = 转向概率（非对角元） · 每行概率之和 = 1</p>
+        </div>
+        <div class="card a" style="--d:460">
+          <div class="h3"><span class="no">3</span>马尔科夫预测分析</div>
+          <p class="body">马尔科夫链的演化仅取决于<b>初始状态向量 $S(0)$</b> 和<b>一步转移矩阵 $P$</b>，所以可用此方法对动态系统进行预测。推广得：$$S(k+1) = S(0) \cdot P^{(k+1)}$$</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S12 预测公式推导 ===== -->
+<section class="s pg12">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.2 · 预测公式</div><h2>马尔科夫预测分析 — 逐期递推</h2></div>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div class="card a" style="--d:180">
+        <div class="h3"><span class="tag">推导 1</span>设上期占有率向量</div>
+        <div style="text-align:center;margin:8px 0"><span class="formula">$S(0) = (S_A(0),\, S_B(0),\, S_C(0),\, S_D(0))$</span></div>
+        <p class="body" style="margin-top:8px">则本期旅客运输市场的占有率向量为：</p>
+        <div style="text-align:center;margin:6px 0"><span class="formula" style="font-size:14px">$S(1) = S(0) \cdot P$</span></div>
+        <div style="text-align:center;margin:4px 0;font-size:13px;color:var(--text2)">$= (S_A(1),\, S_B(1),\, S_C(1),\, S_D(1))$</div>
+      </div>
+      <div class="card a" style="--d:300">
+        <div class="h3"><span class="tag">推导 2</span>展开的分量公式</div>
+        <div style="font-size:12.5px;line-height:2;color:var(--text2)">
+          <div>$S_A(1) = S_A(0){\cdot}P_{AA} + S_B(0){\cdot}P_{BA} + S_C(0){\cdot}P_{CA} + S_D(0){\cdot}P_{DA}$</div>
+          <div>$S_B(1) = S_A(0){\cdot}P_{AB} + S_B(0){\cdot}P_{BB} + S_C(0){\cdot}P_{CB} + S_D(0){\cdot}P_{DB}$</div>
+          <div>$S_C(1) = S_A(0){\cdot}P_{AC} + S_B(0){\cdot}P_{BC} + S_C(0){\cdot}P_{CC} + S_D(0){\cdot}P_{DC}$</div>
+          <div>$S_D(1) = S_A(0){\cdot}P_{AD} + S_B(0){\cdot}P_{BD} + S_C(0){\cdot}P_{CD} + S_D(0){\cdot}P_{DD}$</div>
+        </div>
+      </div>
+      <div class="card a" style="--d:440;grid-column:1/-1">
+        <div class="h3"><span class="tag">推导 3</span>逐期递推 → 长期预测</div>
+        <p class="body">下一期的预测结果（用 $S(1)$ 代入同理展开）：$S(2) = S(1) \cdot P = S(0) \cdot P^{2}$</p>
+        <div style="text-align:center;margin:10px 0"><span class="formula" style="font-size:17px">$$S(k+1) = S(0) \cdot P^{(k+1)}$$</span></div>
+        <p class="body" style="text-align:center;font-size:12.5px">可以得到经过若干时间间隔后系统所处状态的概率 —— 这是整个预测的核心公式。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S13 章节页03：带入案例计算 ===== -->
+<section class="s dark">
+  <div class="div">
+    <div class="gh" aria-hidden="true">03</div>
+    <div class="div-top a" style="--d:0"><i></i>PART 03 · 带入案例计算</div>
+    <div class="div-mid">
+      <h2 class="a" style="--d:160">带入案例计算<br>某省市场占有率预测</h2>
+      <span class="en a" style="--d:280">CASE ANALYSIS</span>
+    </div>
+    <div class="div-bot a" style="--d:360">实证计算 — 数据准备 → 转移矩阵 → 短期预测 → 稳态分布</div>
+  </div>
+</section>
+
+<!-- ===== S14 原始数据表5-3-1 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.3 · 数据准备</div><h2>表5-3-1　2009—2010年旅客流动调查资料</h2></div>
+      <p class="lead a" style="--d:140">STEP 1 · 选定预测的市场对象，进行市场调研</p>
+    </div>
+    <div class="pg-b">
+      <p class="body a" style="--d:120;margin-bottom:10px">预测我国某省在2011年交通运输市场中各种运输方式的市场占有率。首先，对某省的交通运输市场2009年和2010年各种运输方式的市场占有数量进行统计。资料如表5-3-1所示。</p>
+      <div class="a" style="--d:220;flex:1;min-height:0">
+        <table>
+          <thead>
+            <tr><th class="rl" style="width:100px">运输方式</th><th>2009年末<br>旅客数</th><th colspan="4">2010年转移的旅客数</th><th>转出小计<br><span style="font-weight:500;font-size:9.5px">Total_Loss</span></th><th>2010年末<br>旅客数</th></tr>
+            <tr><th class="rl"></th><th></th><th>航空 A</th><th>铁路 B</th><th>公路 C</th><th>水路 D</th><th></th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="rl">航空（A）</td><td class="b">1,300</td><td style="color:var(--text3)">—</td><td>150</td><td>100</td><td>50</td><td class="b">300</td><td class="b">1,700</td></tr>
+            <tr><td class="rl">铁路（B）</td><td class="b">7,000</td><td>200</td><td style="color:var(--text3)">—</td><td>550</td><td>150</td><td class="b">900</td><td class="b">9,000</td></tr>
+            <tr><td class="rl">公路（C）</td><td class="b">62,000</td><td>300</td><td>1,500</td><td style="color:var(--text3)">—</td><td>430</td><td class="b">2,230</td><td class="b">63,000</td></tr>
+            <tr><td class="rl">水路（D）</td><td class="b">1,700</td><td>150</td><td>100</td><td>200</td><td style="color:var(--text3)">—</td><td class="b">450</td><td class="b">1,900</td></tr>
+            <tr class="hl"><td class="rl">转入小计</td><td></td><td>650</td><td>1,750</td><td>850</td><td>630</td><td>3,880</td><td></td></tr>
+            <tr class="hl"><td class="rl">新增旅客</td><td></td><td>50</td><td>1,150</td><td>2,380</td><td>20</td><td>3,600</td><td></td></tr>
+            <tr style="background:var(--blue);color:#fff"><td class="rl" style="color:#fff;border-color:rgba(255,255,255,.2)">总计</td><td style="color:#fff;font-weight:700">72,000</td><td style="color:#fff">+400</td><td style="color:#fff">+2,000</td><td style="color:#fff">+1,000</td><td style="color:#fff">+200</td><td style="color:#fff;font-weight:700">3,880</td><td style="color:#fff;font-weight:700">75,600</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cap a" style="--d:380">勾稽关系：2010年末旅客数 = 2009年末旅客数 − 转出 + 转入 + 新增（单位：万人）。STEP 1：先算出各运输方式的"转出小计"，即 SPSS 变量 Total_Loss；末行 +400、+2,000、+1,000、+200 为各方式的净增旅客数。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S15 转移矩阵 ===== -->
+<section class="s pg14">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.3 · 转移概率</div><h2>计算保持概率与转向概率 → 转移矩阵</h2></div>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1fr 1.1fr;gap:20px">
+      <div style="display:flex;flex-direction:column">
+        <div class="card a" style="--d:180">
+          <div class="h3"><span class="tag">STEP 2</span>计算保持概率</div>
+          <p class="body">公式：$P_{AA} = (N_A - L_A) / N_A$，其中 $N_A$ 为航空 2009 年末旅客数，$L_A$ 为航空的转出小计（Total_Loss）。</p>
+          <p class="body" style="margin-top:2px">以航空 A 为例：$P_{AA} = (1300-300)/1300 = \mathbf{0.769}$</p>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px">
+            <span class="formula">$P_{AA} = 0.769$</span>
+            <span class="formula">$P_{BB} = 0.871$</span>
+            <span class="formula">$P_{CC} = 0.964$</span>
+            <span class="formula">$P_{DD} = 0.735$</span>
+          </div>
+        </div>
+        <div class="card a" style="--d:340">
+          <div class="h3"><span class="tag">STEP 3</span>计算转向概率</div>
+          <p class="body">公式：$P_{AB} = L_{AB} / N_A$，$L_{AB}$ 为航空转向铁路的旅客数。</p>
+          <p class="body" style="margin-top:2px">$P_{AB} = 150/1300 = \mathbf{0.115}$，$P_{AC} = 100/1300 = \mathbf{0.077}$，$P_{AD} = 50/1300 \approx \mathbf{0.039}$</p>
+          <p class="body" style="font-size:12px;color:var(--text3);margin-top:6px">注：$P_{AD}$ 的精确值为 0.03846，为满足行和为 1 由该行补足取 0.039（详见下页逐行明细）。</p>
+        </div>
+      </div>
+      <div class="card a" style="--d:260">
+        <div class="h3" style="justify-content:center"><span class="tag">转移矩阵</span>一步转移矩阵 $P$</div>
+        <table style="margin-top:10px">
+          <thead><tr><th class="rl">从 ＼ 到</th><th>航空 A</th><th>铁路 B</th><th>公路 C</th><th>水路 D</th></tr></thead>
+          <tbody>
+            <tr><td class="rl">航空 A</td><td class="b">0.769</td><td>0.115</td><td>0.077</td><td>0.039</td></tr>
+            <tr><td class="rl">铁路 B</td><td>0.029</td><td class="b">0.871</td><td>0.079</td><td>0.021</td></tr>
+            <tr><td class="rl">公路 C</td><td>0.005</td><td>0.024</td><td class="b">0.964</td><td>0.007</td></tr>
+            <tr><td class="rl">水路 D</td><td>0.088</td><td>0.059</td><td>0.118</td><td class="b">0.735</td></tr>
+          </tbody>
+        </table>
+        <p class="cap" style="text-align:center;margin-top:12px">对角元 = 保持概率（高对角 → 高粘性） · 每行之和 = 1</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S16 转移矩阵的逐行计算明细 ===== -->
+<section class="s pg-dt">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.3 · 转移概率明细</div><h2>由表5-3-1 到转移矩阵：逐行计算明细</h2></div>
+      <p class="lead a" style="--d:140">逐行归一化：每一行各除以本方式的 2009 年末旅客数 $N_i$</p>
+    </div>
+    <div class="pg-b">
+      <div class="card a" style="--d:180">
+        <div style="display:grid;grid-template-columns:1.12fr .88fr;gap:18px;align-items:center">
+          <div>
+            <div class="h3"><span class="tag">STEP 2–3 · 映射</span>数据表的行列 ↔ 转移矩阵的行列</div>
+            <p class="body">表5-3-1 中，第 $i$ 行是<b>出发方式</b> $i$，第 $j$ 列是<b>去向方式</b> $j$。行基数 $N_i$ 取该行"2009年末旅客数"，转向量 $L_{ij}$ 取第 $i$ 行第 $j$ 列（$i \neq j$）的旅客数，转出总量 $L_i$ 取该行"转出小计"。</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <span class="formula">转向概率：$P_{ij} = L_{ij} / N_i \quad (i \neq j)$</span>
+            <span class="formula">保持概率：$P_{ii} = (N_i - L_i) / N_i$</span>
+            <span class="formula">行和约束：$\sum_{j} P_{ij} = 1$</span>
+          </div>
+        </div>
+      </div>
+      <div class="card a" style="--d:300">
+        <table>
+          <thead>
+            <tr><th class="rl">从 ＼ 到</th><th>基数 $N_i$<br>（2009年末）</th><th>航空 A</th><th>铁路 B</th><th>公路 C</th><th>水路 D</th><th>行和</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="rl">航空 A</td><td>1,300</td><td class="b">(1300−300)/1300 ≈ 0.769</td><td>150/1300 ≈ 0.115</td><td>100/1300 ≈ 0.077</td><td>50/1300 ≈ 0.039</td><td>1.000</td></tr>
+            <tr><td class="rl">铁路 B</td><td>7,000</td><td>200/7000 ≈ 0.029</td><td class="b">(7000−900)/7000 ≈ 0.871</td><td>550/7000 ≈ 0.079</td><td>150/7000 ≈ 0.021</td><td>1.000</td></tr>
+            <tr><td class="rl">公路 C</td><td>62,000</td><td>300/62000 ≈ 0.005</td><td>1500/62000 ≈ 0.024</td><td class="b">(62000−2230)/62000 ≈ 0.964</td><td>430/62000 ≈ 0.007</td><td>1.000</td></tr>
+            <tr><td class="rl">水路 D</td><td>1,700</td><td>150/1700 ≈ 0.088</td><td>100/1700 ≈ 0.059</td><td>200/1700 ≈ 0.118</td><td class="b">(1700−450)/1700 ≈ 0.735</td><td>1.000</td></tr>
+          </tbody>
+        </table>
+        <p class="cap" style="margin-top:6px">对角元为<b>保持概率</b>（分子 $N_i - L_i$），非对角元为<b>转向概率</b>（分子 $L_{ij}$）；两类计算的分母都是本行的基数 $N_i$。</p>
+      </div>
+      <div class="card alt a" style="--d:420">
+        <p class="body"><b>行和为 1 的处理：</b>各元素先按三位小数四舍五入；若某行合计不为 1，则由该行最后一个元素补齐。以航空 A 行为例：$0.769+0.115+0.077=0.961$，故 $P_{AD} = 1-0.961 = 0.039$（其精确值 0.03846 直接四舍五入得 0.038，会使行和不足 1）。上表四行行和均为 1.000，所得矩阵满足 $\sum_{j} P_{ij} = 1$ 的约束。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S17 初始市场占有率 ===== -->
+<section class="s pg15">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.3 · 初始状态</div><h2>计算初始市场占有率向量 S(0)</h2></div>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card a" style="--d:180">
+          <div class="h3"><span class="tag">STEP 4</span>计算方法</div>
+          <p class="body" style="font-size:12.5px">公式：$S_i(0) = N_i(2010) \big/ \sum_i N_i(2010)$，即某运输方式 2010 年末旅客数 ÷ 四种方式旅客总数。</p>
+          <p class="body" style="font-size:12.5px;margin-top:6px">点击【分析→描述统计→描述】，查看 "Pass_2010" 总和 = <b>75,600（万人）</b></p>
+        </div>
+        <div class="card a" style="--d:300">
+          <div class="h3"><span class="tag">SPSS输出</span>描述统计</div>
+          <table style="font-size:11.5px">
+            <thead><tr><th>N</th><th>最小值</th><th>最大值</th><th>总和</th><th>标准差</th></tr></thead>
+            <tbody><tr><td>4</td><td>1,700</td><td>63,000</td><td class="b">75,600</td><td>29,595.383</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card a" style="--d:420">
+          <div class="h3"><span class="tag">RESULT</span>计算结果</div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:4px">
+            <span class="formula" style="font-size:13px">$S_A(0) = 1700/75600 \approx \mathbf{0.023}$</span>
+            <span class="formula" style="font-size:13px">$S_B(0) = 9000/75600 = \mathbf{0.119}$</span>
+            <span class="formula" style="font-size:13px">$S_C(0) = 63000/75600 = \mathbf{0.833}$</span>
+            <span class="formula" style="font-size:13px">$S_D(0) = 1900/75600 \approx \mathbf{0.025}$</span>
+          </div>
+          <p class="body" style="font-size:12px;margin-top:8px;color:var(--text3)">精确值 $S_A(0)=0.02249$、$S_D(0)=0.02513$，为使其和恰为 1，分别取 0.023 与 0.025。</p>
+        </div>
+      </div>
+      <div class="card alt a" style="--d:340">
+        <div class="h3" style="justify-content:center"><span class="tag">初始状态向量</span>2010年末市场占有率向量 $S(0)$</div>
+        <div style="text-align:center;margin:16px 0"><span class="formula" style="font-size:17px">$S(0) = (0.023,\; 0.119,\; 0.833,\; 0.025)$</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;margin-top:12px">
+          <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">2.3%</div><div style="font-size:10px;color:var(--text3)">航空 A</div></div>
+          <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">11.9%</div><div style="font-size:10px;color:var(--text3)">铁路 B</div></div>
+          <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">83.3%</div><div style="font-size:10px;color:var(--text3)">公路 C</div></div>
+          <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">2.5%</div><div style="font-size:10px;color:var(--text3)">水路 D</div></div>
+        </div>
+        <p class="body" style="font-size:12px;margin-top:14px;text-align:center">2010年某省旅客市场由<b>公路主导</b>（83.3%）</p>
+        <p class="body" style="font-size:12px;margin-top:4px;text-align:center">以 $S(1) = S(0) \cdot P$ 推演下一期</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S18 短期预测（R语言） ===== -->
+<section class="s pg-fc">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.3 · 短期预测</div><h2>2011年市场占有率预测（R语言实现）</h2></div>
+      <p class="lead a" style="--d:140">STEP 5 · 用上期占有率乘一步转移矩阵递推本期</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.05fr .95fr;gap:18px">
+      <div class="a" style="--d:180;display:flex;flex-direction:column;gap:10px">
+        <pre style="flex:1;min-height:0"><span class="c"># 定义初始状态向量 s_2010 与一步转移矩阵 P</span>
+s_2010 <- c(<span class="n">0.023</span>, <span class="n">0.119</span>, <span class="n">0.833</span>, <span class="n">0.025</span>)
+P <- matrix(c(
+  <span class="n">0.769</span>, <span class="n">0.115</span>, <span class="n">0.077</span>, <span class="n">0.039</span>,
+  <span class="n">0.029</span>, <span class="n">0.871</span>, <span class="n">0.079</span>, <span class="n">0.021</span>,
+  <span class="n">0.005</span>, <span class="n">0.024</span>, <span class="n">0.964</span>, <span class="n">0.007</span>,
+  <span class="n">0.088</span>, <span class="n">0.059</span>, <span class="n">0.118</span>, <span class="n">0.735</span>
+), nrow = <span class="n">4</span>, byrow = TRUE)
+<span class="c"># 矩阵乘法：本期占有率 = 上期占有率 × P</span>
+s_2011 <- t(s_2010) <span class="kw">%*%</span> P
+<span class="kw">round</span>(s_2011, <span class="n">3</span>)              <span class="c"># 2011：0.028 0.128 0.817 0.028</span>
+<span class="c"># 再乘一次 P，递推得到 2012 年占有率</span>
+s_2012 <- s_2011 <span class="kw">%*%</span> P
+<span class="kw">round</span>(s_2012, <span class="n">3</span>)              <span class="c"># 2012：0.031 0.136 0.803 0.030</span></pre>
+        <p class="body" style="font-size:12px">本期占有率 = 上期占有率 × 一步转移矩阵；2012 年由 2011 年结果再乘一次 P 得到</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card alt a" style="--d:300;text-align:center">
+          <div class="h3" style="justify-content:center"><span class="tag">2011</span>$S(1) = S(0) \cdot P$</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px">
+            <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">2.8%</div><div style="font-size:10px;color:var(--text3)">航空 A</div></div>
+            <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">12.8%</div><div style="font-size:10px;color:var(--text3)">铁路 B</div></div>
+            <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">81.7%</div><div style="font-size:10px;color:var(--text3)">公路 C</div></div>
+            <div style="background:var(--bg);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:var(--blue)">2.8%</div><div style="font-size:10px;color:var(--text3)">水路 D</div></div>
+          </div>
+        </div>
+        <div class="card a" style="--d:440;text-align:center">
+          <div class="h3" style="justify-content:center"><span class="tag">2012</span>$S(2) = S(1) \cdot P$</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px">
+            <div style="background:var(--blue);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:#fff">3.1%</div><div style="font-size:10px;color:rgba(255,255,255,.6)">航空 A</div></div>
+            <div style="background:var(--blue);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:#fff">13.6%</div><div style="font-size:10px;color:rgba(255,255,255,.6)">铁路 B</div></div>
+            <div style="background:var(--blue);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:#fff">80.3%</div><div style="font-size:10px;color:rgba(255,255,255,.6)">公路 C</div></div>
+            <div style="background:var(--blue);border-radius:6px;padding:10px 4px"><div style="font-size:20px;font-weight:800;color:#fff">3.0%</div><div style="font-size:10px;color:rgba(255,255,255,.6)">水路 D</div></div>
+          </div>
+        </div>
+        <p class="body a" style="--d:540;font-size:11.5px;text-align:center;color:var(--text3)">占有率随期次升高逐步趋近稳态值</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S19 稳态分布的计算（案例） ===== -->
+<section class="s pg-sm">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.3 · 稳态分布</div><h2>求解稳态分布 $S^{*}$ — 长期市场格局</h2></div>
+      <p class="lead a" style="--d:140">联立 $S P = S$ 与 $\sum_i S_i = 1$，解出唯一稳态分布</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.06fr .94fr;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="card a" style="--d:180">
+          <div class="h3"><span class="tag">STEP 6</span>建立稳态方程组</div>
+          <p class="body" style="font-size:12.5px">把一步转移矩阵 $P$ 代入 $\sum_i S_i P_{ij} = S_j$，移项后得：</p>
+          <div style="font-size:12.5px;line-height:1.9;color:var(--text2);margin-top:2px">
+            <div>(1) $-0.231S_A + 0.029S_B + 0.005S_C + 0.088S_D = 0$</div>
+            <div>(2) $\phantom{-}0.115S_A - 0.129S_B + 0.024S_C + 0.059S_D = 0$</div>
+            <div>(3) $\phantom{-}0.077S_A + 0.079S_B - 0.036S_C + 0.118S_D = 0$</div>
+            <div>(4)（归一化）$S_A + S_B + S_C + S_D = 1$</div>
+          </div>
+          <p class="body" style="font-size:11.5px;color:var(--text3);margin-top:2px">四个平衡方程中只有 3 个相互独立（第 4 个冗余），故保留 (1)~(3) 并用归一化条件替入，从而得到唯一解。</p>
+        </div>
+        <div class="card a" style="--d:320">
+          <div class="h3"><span class="tag">验证</span>逐期递推收敛到 $S^{*}$</div>
+          <table style="font-size:12px">
+            <thead><tr><th class="rl">期次 $k$</th><th>航空 A</th><th>铁路 B</th><th>公路 C</th><th>水路 D</th></tr></thead>
+            <tbody>
+              <tr><td class="rl">$k=10$</td><td>0.048</td><td>0.176</td><td>0.738</td><td>0.039</td></tr>
+              <tr><td class="rl">$k=20$</td><td>0.054</td><td>0.193</td><td>0.711</td><td>0.042</td></tr>
+              <tr><td class="rl">$k=50$</td><td>0.057</td><td>0.200</td><td>0.701</td><td>0.043</td></tr>
+              <tr class="hl"><td class="rl">$k\to\infty$</td><td class="b">0.057</td><td class="b">0.200</td><td class="b">0.700</td><td class="b">0.043</td></tr>
+            </tbody>
+          </table>
+          <p class="cap" style="margin-top:4px">解方程组与逐期递推两条路径结果一致（三位小数完全相同），互为验证。</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="card alt a" style="--d:260;text-align:center">
+          <div class="h3" style="justify-content:center"><span class="tag">解</span>$S^{*} = (0.057,\ 0.200,\ 0.700,\ 0.043)$</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px">
+            <div style="background:var(--bg);border-radius:6px;padding:9px 4px"><div style="font-size:19px;font-weight:800;color:var(--blue)">5.7%</div><div style="font-size:10px;color:var(--text3)">航空 A</div></div>
+            <div style="background:var(--bg);border-radius:6px;padding:9px 4px"><div style="font-size:19px;font-weight:800;color:var(--blue)">20.0%</div><div style="font-size:10px;color:var(--text3)">铁路 B</div></div>
+            <div style="background:var(--bg);border-radius:6px;padding:9px 4px"><div style="font-size:19px;font-weight:800;color:var(--blue)">70.0%</div><div style="font-size:10px;color:var(--text3)">公路 C</div></div>
+            <div style="background:var(--bg);border-radius:6px;padding:9px 4px"><div style="font-size:19px;font-weight:800;color:var(--blue)">4.3%</div><div style="font-size:10px;color:var(--text3)">水路 D</div></div>
+          </div>
+          <p class="body" style="font-size:11.5px;margin-top:8px;color:var(--text3)">稳态分布取决于转移矩阵 $P$，与初始状态 $S(0)$ 无关，是市场演化的长期终态。</p>
+          <p class="body" style="font-size:11px;margin-top:2px;color:var(--text3)">注：若改用未舍入的精确转移概率，解得 $S^{*}=(0.056,\,0.201,\,0.700,\,0.043)$，结论一致。</p>
+        </div>
+        <pre class="a" style="--d:400;flex:1;min-height:0"><span class="c"># 求解稳态分布：S·P = S 且 sum(S) = 1（P 同上一页，便于单独运行）</span>
+P <- <span class="kw">matrix</span>(<span class="kw">c</span>(<span class="n">0.769</span>,<span class="n">0.115</span>,<span class="n">0.077</span>,<span class="n">0.039</span>, <span class="n">0.029</span>,<span class="n">0.871</span>,<span class="n">0.079</span>,<span class="n">0.021</span>,
+              <span class="n">0.005</span>,<span class="n">0.024</span>,<span class="n">0.964</span>,<span class="n">0.007</span>, <span class="n">0.088</span>,<span class="n">0.059</span>,<span class="n">0.118</span>,<span class="n">0.735</span>),
+            nrow = <span class="n">4</span>, byrow = <span class="kw">TRUE</span>)
+s_steady <- <span class="kw">function</span>(P) {
+  n <- <span class="kw">nrow</span>(P)
+  A <- <span class="kw">t</span>(P) - <span class="kw">diag</span>(n)     <span class="c"># (P^T - I) S = 0</span>
+  A[n, ] <- <span class="n">1</span>              <span class="c"># 末行换成归一化条件</span>
+  b <- <span class="kw">c</span>(<span class="kw">rep</span>(<span class="n">0</span>, n - <span class="n">1</span>), <span class="n">1</span>)
+  <span class="kw">solve</span>(A, b)
+}
+s_star <- <span class="kw">s_steady</span>(P)
+<span class="kw">round</span>(s_star, <span class="n">3</span>)            <span class="c"># 0.057 0.200 0.700 0.043</span>
+<span class="kw">round</span>(s_star <span class="kw">%*%</span> P, <span class="n">3</span>)      <span class="c"># 回代验证：S*·P = S*</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S20 稳态对比与结论 ===== -->
+<section class="s pg17">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.3 · 结论</div><h2>表5-3-2　市场占有率对比与分析</h2></div>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.05fr .95fr;gap:20px">
+      <div style="display:flex;flex-direction:column">
+        <div class="card a" style="--d:180">
+          <div class="h3"><span class="tag">表5-3-2</span>四种运输方式的市场占有率</div>
+          <table>
+            <thead><tr><th class="rl"></th><th>航空 A</th><th>铁路 B</th><th>公路 C</th><th>水路 D</th></tr></thead>
+            <tbody>
+              <tr><td class="rl">初始状态 $S(0)$</td><td>2.3%</td><td>11.9%</td><td class="b">83.3%</td><td>2.5%</td></tr>
+              <tr><td class="rl">稳态分布 $S^{*}$</td><td class="b">5.7%</td><td class="b">20.0%</td><td class="b">70.0%</td><td class="b">4.3%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card dark a" style="--d:360">
+          <div class="h3"><span class="tag">变化</span>稳态分布相对初始状态的变化</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;margin-top:6px">
+            <div><div style="font-size:24px;font-weight:800;color:#fff">+3.4%</div><div style="font-size:11.5px;color:rgba(255,255,255,.6)">航空 ↑</div></div>
+            <div><div style="font-size:24px;font-weight:800;color:#fff">+8.1%</div><div style="font-size:11.5px;color:rgba(255,255,255,.6)">铁路 ↑</div></div>
+            <div><div style="font-size:24px;font-weight:800;color:#F87171">−13.3%</div><div style="font-size:11.5px;color:rgba(255,255,255,.6)">公路 ↓</div></div>
+            <div><div style="font-size:24px;font-weight:800;color:#fff">+1.8%</div><div style="font-size:11.5px;color:rgba(255,255,255,.6)">水路 ↑</div></div>
+          </div>
+        </div>
+        <p class="cap" style="margin-top:10px;line-height:1.6">稳态分布 = 长期（$k\to\infty$）收敛后的状态分布，由 $S^{*}P = S^{*}$ 与 $\sum_{i} S_i^{*} = 1$ 联立解出，也即前文所称的平衡向量（固有概率向量）。</p>
+      </div>
+      <div class="card a" style="--d:280">
+        <div class="h3"><span class="tag">ANALYSIS</span>对比分析</div>
+        <p class="body">由表5-3-2可将四种运输方式的市场占有率作稳态分布与初始状态的对比，可以看出<b>航空、铁路、水路</b>三种运输方式相较于初始状态都有所提升，分别提升了<b>3.4%、8.1%、1.8%</b>，而<b>公路下降了13.3%</b>，说明旅客的出行方式选择正慢慢趋向于<b>多元化</b>。</p>
+        <div style="height:1px;background:var(--line);margin:8px 0"></div>
+        <p class="body">旅客在选择出行方式时，会考虑多种因素，包括<b>价格、速度、舒适度、安全性</b>等，这些因素都会影响运输企业的竞争力和客户满意度。</p>
+        <div style="height:1px;background:var(--line);margin:8px 0"></div>
+        <p class="body">因此，各运输企业要在旅客运输市场中取得应有的<b>市场占有率</b>、决策出更好的营销策略，就必须了解旅客的出行选择行为模式；必须依靠<b>高速度、高技术、高质量的服务</b>去参与竞争，着眼于为旅客提供更适宜的服务，力求更大限度地满足旅客需求。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S21 总结 ===== -->
+<section class="s pg18">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>5.3.4 · 结语</div><h2>总结</h2></div>
+    </div>
+    <div class="pg-b">
+      <div class="card a" style="--d:180;flex:1">
+        <p class="body">
+          本研究以某省旅客运输市场为对象，通过马尔科夫分析法，系统完成了从数据调研到市场预测的全流程探索。我们先基于<b>2009-2010年旅客流动数据</b>，计算出保持概率与转向概率，构建起<b>一步转移矩阵</b>；再以<b>2010年末市场占有率为初始状态向量 $S(0)$</b>，成功预测出<b>2011-2012年短期市场格局</b>，并由稳态方程组解出<b>稳态分布 $S^{*}$</b>下各运输方式的占有率。
+        </p>
+        <p class="body" style="margin-top:12px">
+          结果清晰显示，随着时间推移，旅客出行方式正从以公路为主导，逐步向航空、铁路、水路<b>多元化</b>方向发展——航空、铁路、水路占有率分别提升<b>3.4%、8.1%、1.8%</b>，公路则下降<b>13.3%</b>。这一变化既反映了旅客对出行体验（速度、舒适度等）需求的升级，也为运输市场的发展指明了方向。
+        </p>
+      </div>
+      <div class="flow a" style="--d:360;margin-top:14px;justify-content:center">
+        <span class="step">历史数据 2009-2010</span><span class="arr">→</span>
+        <span class="step">转移矩阵 P</span><span class="arr">→</span>
+        <span class="step">初始状态向量 S(0)</span><span class="arr">→</span>
+        <span class="step">预测 2011-2012</span><span class="arr">→</span>
+        <span class="step">稳态分布 S*</span><span class="arr">→</span>
+        <span class="step">多元化趋势</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S22 结尾 ===== -->
+<section class="s end">
+  <div class="end-l">
+    <div class="et a" style="--d:0">CHAPTER 5 · DECISION ANALYSIS — CASE 5.3</div>
+    <div>
+      <h2 class="a" style="--d:160">谢谢</h2>
+      <div class="es a" style="--d:280">THANKS · 敬请批评指正</div>
+    </div>
+    <div class="sig a" style="--d:380"><b>第5章 决策分析案例</b><br>5.3 基于马尔科夫链的旅客运输市场占有率评价</div>
+  </div>
+  <div class="end-r">
+    <div class="et2 a" style="--d:0"><span>KEY TAKEAWAYS</span><span>03 要点</span></div>
+    <div class="tks">
+      <div class="tk a" style="--d:140"><div class="n">01</div><div><h4>方法</h4><p>旅客运输市场占有率的演化可建模为马尔科夫链：$S(t+1) = S(t) \cdot P$，只需初始状态向量与一步转移矩阵。</p></div></div>
+      <div class="tk a" style="--d:260"><div class="n">02</div><div><h4>结论</h4><p>稳态分布：航空5.7% · 铁路20.0% · 公路70.0% · 水路4.3%，格局趋于多元化。</p></div></div>
+      <div class="tk a" style="--d:380"><div class="n">03</div><div><h4>启示</h4><p>公路−13.3%，航空、铁路、水路上升——运输企业应立足高质量服务参与竞争。</p></div></div>
+    </div>
+    <div class="ft a" style="--d:500"><i></i>END OF PRESENTATION</div>
+  </div>
+</section>
+
+<!-- ===== 全局工具条 ===== -->
+<div class="bar bar-top"><span><b>民航决策优化案例</b> · 马尔科夫分析法</span><span>旅客运输市场占有率评价</span></div>
+<div class="bar bar-bot"><span>第5章 决策分析案例</span><span><span class="pg" id="pc">01</span> / <span id="pt">20</span></span></div>
+<nav class="dots" id="dn" aria-label="导航"></nav>
+
+</div>
+
+<script>
+(function(){
+  var dk=document.getElementById('deck'),ss=[].slice.call(dk.querySelectorAll('.s')),n=ss.length,c=0,busy=false;
+  document.getElementById('pt').textContent=String(n).padStart(2,'0');
+  var dn=document.getElementById('dn');
+  for(var i=0;i<n;i++){var b=document.createElement('button');b.setAttribute('aria-label','第'+(i+1)+'页');(function(j){b.addEventListener('click',function(){go(j)})})(i);dn.appendChild(b)}
+  var dots=[].slice.call(dn.children);
+  function go(i){if(i<0||i>=n||i===c||busy)return;busy=true;ss[c].classList.remove('on');c=i;ss[c].classList.add('on');dots.forEach(function(d,j){d.classList.toggle('on',j===c)});document.getElementById('pc').textContent=String(c+1).padStart(2,'0');setTimeout(function(){busy=false},500)}
+  function fit(){var s=Math.min(window.innerWidth/1280,window.innerHeight/720);dk.style.transform='translate(-50%,-50%) scale('+s+')'}
+  window.addEventListener('resize',fit);
+  document.addEventListener('keydown',function(e){var k=e.key;if(k==='ArrowRight'||k==='ArrowDown'||k==='PageDown'||k===' '||k==='Enter'){e.preventDefault();if(!busy)go(c+1)}else if(k==='ArrowLeft'||k==='ArrowUp'||k==='PageUp'){e.preventDefault();if(!busy)go(c-1)}else if(k==='Home'){e.preventDefault();go(0)}else if(k==='End'){e.preventDefault();go(n-1)}});
+  var wl=false;dk.addEventListener('wheel',function(e){e.preventDefault();if(wl)return;if(Math.abs(e.deltaY)>24){wl=true;go(e.deltaY>0?c+1:c-1);setTimeout(function(){wl=false},800)}},{passive:false});
+  var tx=null,ty=null;dk.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});dk.addEventListener('touchend',function(e){if(tx===null)return;var t=e.changedTouches[0],dx=t.clientX-tx,dy=t.clientY-ty;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy))go(dx<0?c+1:c-1);else if(Math.abs(dy)>60)go(dy<0?c+1:c-1);tx=null;ty=null},{passive:true});
+  fit();ss[0].classList.add('on');dots[0].classList.add('on');
+})();
+</script>
+</body>
+</html>
