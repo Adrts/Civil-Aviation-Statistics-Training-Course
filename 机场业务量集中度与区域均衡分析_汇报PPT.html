@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>机场业务量集中度与区域均衡分析 · 汇报</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+:root{
+  --blue:#4466EE;
+  --blue-dark:#1A2D6D;
+  --blue-soft:rgba(68,102,238,.10);
+  --blue-border:rgba(68,102,238,.22);
+  --red:#D64541;
+  --red-soft:rgba(214,69,65,.10);
+  --red-border:rgba(214,69,65,.25);
+  --text:#1E293B;
+  --text2:#475569;
+  --text3:#94A3B8;
+  --bg:#FFFFFF;
+  --bg2:#F6F8FC;
+  --line:rgba(30,41,59,.10);
+}
+/* ========== 编号规范（全篇统一） ==========
+   四大板块：01 背景与问题 / 02 数据与方法 / 03 研究发现 / 04 结论与建议
+   板块号出现在页眉 kicker：01 · 背景与问题；发现页为 03 · 研究发现｜发现 N
+   问题号：问题一/二/三；结论号：结论一/二/三；建议号：1/2/3/4 实心圆徽标 .no
+   页码：两位补零阿拉伯数字，01~10；图表号：图1/图2、表1
+   全篇禁用圈码 ①②③；跨页引用写"上一页 / 下页"
+   ================================================ */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#E8ECF2}
+body{font-family:"Noto Sans SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+
+/* ========== 画布 ========== */
+#deck{position:fixed;top:50%;left:50%;width:1280px;height:720px;transform:translate(-50%,-50%) scale(1);background:var(--bg);color:var(--text);overflow:hidden;box-shadow:0 20px 80px rgba(20,40,80,.18),0 2px 12px rgba(20,40,80,.08);transform-origin:center center}
+
+/* ========== 幻灯片 ========== */
+.s{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .45s cubic-bezier(.25,.7,.2,1),visibility 0s linear .45s;overflow:hidden}
+.s.on{opacity:1;visibility:visible;z-index:2;transition:opacity .45s cubic-bezier(.25,.7,.2,1)}
+.s .a{opacity:0}.s.on .a{animation:up .55s ease both;animation-delay:calc(var(--d,60)*1ms)}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ========== 工具条 ========== */
+.bar{position:absolute;left:0;right:0;height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 76px;font-size:11px;color:var(--text3);z-index:20;pointer-events:none;letter-spacing:.04em}
+.bar-top{top:0;border-bottom:1px solid var(--line)}
+.bar-bot{bottom:0;border-top:1px solid var(--line)}
+.bar b{color:var(--blue);font-weight:600}
+.bar .pg{font-weight:700;font-variant-numeric:tabular-nums;color:var(--blue)}
+#deck:has(.s.cover.on) .bar,#deck:has(.s.end.on) .bar{opacity:0;visibility:hidden}
+
+/* ========== 圆点导航 ========== */
+.dots{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:6px;z-index:30}
+.dots button{width:8px;height:8px;border-radius:50%;border:1.2px solid rgba(68,102,238,.35);background:transparent;cursor:pointer;padding:0;transition:all .2s}
+.dots button:hover{border-color:var(--blue)}
+.dots button.on{background:var(--blue);border-color:var(--blue)}
+#deck:has(.s.end.on) .dots button{border-color:rgba(68,102,238,.55);box-shadow:0 0 0 1.5px rgba(26,45,109,.25)}
+#deck:has(.s.end.on) .dots button.on{background:var(--blue);border-color:var(--blue);box-shadow:none}
+
+/* ========== 内容页骨架 ========== */
+.pg-s{display:flex;flex-direction:column;height:100%;padding:52px 76px 56px}
+.pg-h{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;margin-bottom:20px;flex-shrink:0}
+.pg-h .k{font-size:11.5px;letter-spacing:.2em;color:var(--blue);font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.pg-h .k i{width:22px;height:2px;background:var(--blue);display:inline-block;font-style:normal}
+.pg-h h2{font-family:"Noto Serif SC",serif;font-size:30px;line-height:1.18;font-weight:700;color:var(--text)}
+.pg-h .lead{font-size:12.5px;line-height:1.7;color:var(--text2);max-width:46ch;text-align:right}
+.pg-b{flex:1;min-height:0;display:flex;flex-direction:column;max-height:552px}
+
+/* 小标题 */
+.h3{font-family:"Noto Serif SC",serif;font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.h3 .tag{font-size:10px;font-weight:600;letter-spacing:.12em;color:var(--blue);background:var(--blue-soft);border:1px solid var(--blue-border);padding:2px 8px;border-radius:20px}
+
+/* 正文 */
+.body{font-size:13.5px;line-height:1.7;color:var(--text2)}
+.body b{color:var(--text);font-weight:600}
+.body .hl{color:var(--blue);font-weight:600}
+.body .neg{color:var(--red);font-weight:600}
+
+/* 卡片 */
+.card{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:14px 16px}
+.card.alt{background:var(--bg2);border-color:var(--line)}
+.card.blue{background:var(--blue-soft);border-color:var(--blue-border)}
+.card.dark{background:var(--blue-dark);border-color:var(--blue-dark);color:#fff}
+.card.dark .h3{color:#fff}
+.card.dark .body{color:rgba(255,255,255,.82)}
+
+/* 编号圆 */
+.no{width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.no.outline{background:transparent;color:var(--blue);border:1.5px solid var(--blue)}
+
+/* 大数字 */
+.num{font-family:Georgia,"Times New Roman",serif;font-weight:700;color:var(--blue);font-variant-numeric:tabular-nums;line-height:1}
+.lb{font-size:10px;letter-spacing:.18em;color:var(--text3);font-weight:600}
+
+/* 底部横带 */
+.band{display:flex;align-items:center;gap:14px;border:1px solid var(--blue-border);background:var(--blue-soft);border-radius:8px;padding:11px 16px}
+.band .bt{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--blue);flex-shrink:0}
+.band .bt i{width:18px;height:2px;background:var(--blue);display:inline-block;font-style:normal}
+.band .bc{font-size:12.5px;line-height:1.55;color:var(--text2)}
+.band .bc b{color:var(--text)}
+
+/* 流程链 */
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.flow .st{background:#fff;border:1px solid var(--blue-border);color:var(--text);font-size:12px;font-weight:600;border-radius:6px;padding:6px 12px;white-space:nowrap}
+.flow .ar{color:var(--blue);font-weight:700;font-size:13px;flex-shrink:0}
+
+/* ========== 表格 ========== */
+table{border-collapse:collapse;width:100%;font-size:13px;color:var(--text)}
+th{font-size:11px;font-weight:600;color:var(--text2);border-bottom:1.5px solid var(--blue);padding:9px 8px;text-align:center;background:var(--blue-soft);letter-spacing:.03em}
+th.rl{text-align:left}
+td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:center;font-variant-numeric:tabular-nums}
+td.rl{text-align:left;font-weight:600;white-space:nowrap}
+td .b{color:var(--blue);font-weight:700}
+td .neg{color:var(--red);font-weight:700}
+tr.hl td{background:var(--blue-soft)}
+tr.hl2 td{background:var(--red-soft)}
+.cap{font-size:11px;color:var(--text3);margin-top:6px}
+
+/* ========== 封面 ========== */
+.s.cover{padding:0 76px 44px;display:flex;flex-direction:column}
+.cv-top{display:flex;justify-content:space-between;padding-top:30px;font-size:12px;color:var(--text3);font-weight:500;letter-spacing:.1em}
+.cv-mid{flex:1;display:flex;flex-direction:column;justify-content:center}
+.cv-mid .k{display:inline-flex;align-items:center;gap:10px;font-size:12px;font-weight:600;letter-spacing:.22em;color:var(--blue);margin-bottom:18px}
+.cv-mid .k i{width:28px;height:2px;background:var(--blue);display:inline-block;font-style:normal}
+.cv-mid h1{font-family:"Noto Serif SC",serif;font-size:50px;line-height:1.18;font-weight:900;color:var(--text)}
+.cv-mid .sub{margin-top:18px;font-size:13.5px;line-height:1.85;color:var(--text2);max-width:66ch}
+.cv-mid .sub b{color:var(--text)}
+.cv-bot{border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);gap:28px;padding:18px 0 0;align-items:start}
+.cv-bot .lb{font-size:10px;letter-spacing:.2em;color:var(--text3);font-weight:600;margin-bottom:6px}
+.cv-bot .vl{font-size:13px;color:var(--text);font-weight:500;line-height:1.5}
+.cv-deco{position:absolute;right:-36px;top:-80px;width:430px;height:430px;border-radius:50%;border:1.5px solid var(--blue-border);pointer-events:none}
+.cv-deco::after{content:"";position:absolute;inset:56px;border-radius:50%;border:1.5px solid var(--blue-soft)}
+
+/* ========== 目录页 ========== */
+.ag-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ag{border:1px solid var(--line);border-radius:10px;padding:16px 15px;background:var(--bg);display:flex;flex-direction:column;min-height:252px}
+.ag .n{font-family:Georgia,serif;font-size:30px;font-weight:700;color:var(--blue);line-height:1}
+.ag h4{font-family:"Noto Serif SC",serif;font-size:16.5px;font-weight:700;color:var(--text);margin:10px 0 6px}
+.ag .en{font-size:9.5px;letter-spacing:.16em;color:var(--text3);font-weight:600;margin-bottom:8px}
+.ag p{font-size:11.5px;line-height:1.65;color:var(--text2)}
+.ag .mini{margin-top:auto;padding-top:10px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:4px}
+.ag .mini span{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.ag .mini span::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--blue);flex-shrink:0}
+
+/* ========== 目录/路径链（发现概览） ========== */
+.loop{display:grid;grid-template-columns:1fr 26px 1fr 26px 1fr 26px 1fr 26px 1fr;align-items:stretch;gap:0}
+.loop .node{border:1px solid var(--blue-border);background:#fff;border-radius:8px;padding:9px 8px;text-align:center}
+.loop .node b{display:block;font-size:12.5px;color:var(--text);font-weight:700;line-height:1.4}
+.loop .node span{font-size:10px;color:var(--text3);letter-spacing:.05em}
+.loop .ar{display:flex;align-items:center;justify-content:center;color:var(--blue);font-weight:700;font-size:14px}
+
+/* ========== 统计块 ========== */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:13px 16px;background:var(--bg)}
+.tile .num{font-size:30px}
+.tile .num small{font-size:16px}
+.tile .lb{margin-top:6px}
+.tile.warn .num{color:var(--red)}
+
+/* ========== 图表 ========== */
+.chart-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px 10px;background:#fff}
+.chart-card .cap{margin-top:2px}
+svg text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif}
+.axis{stroke:rgba(30,41,59,.14);stroke-width:1}
+.gridl{stroke:rgba(30,41,59,.07);stroke-width:1}
+.lbl{font-size:10.5px;fill:var(--text3)}
+.lbl2{font-size:11px;fill:var(--text2);font-weight:600}
+.vlbl{font-size:10.5px;fill:var(--blue);font-weight:700}
+.ann{font-size:10.5px;fill:var(--text2)}
+
+/* 贡献对比条 */
+.cbar{margin-bottom:12px}
+.cbar .row1{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px}
+.cbar .row1 .t{font-size:13px;font-weight:700;color:var(--text)}
+.cbar .row1 .v{font-family:Georgia,serif;font-size:24px;font-weight:700;color:var(--blue)}
+.cbar .row1 .v.neg{color:var(--red)}
+.cbar .track{height:12px;border-radius:6px;background:var(--bg2);border:1px solid var(--line);overflow:hidden}
+.cbar .fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#6B85F2,var(--blue))}
+.cbar .rg .fill{background:linear-gradient(90deg,#E38A86,var(--red))}
+.cbar .sub{font-size:10.5px;color:var(--text3);margin-top:4px}
+
+/* 梯队复合增速发散条 */
+.dv{display:grid;grid-template-columns:118px 1fr 58px;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.dv:last-of-type{border-bottom:none}
+.dv .nm{font-size:12.5px;font-weight:600;color:var(--text);line-height:1.35}
+.dv .nm small{display:block;font-weight:400;font-size:10px;color:var(--text3)}
+.dv .zone{position:relative;height:26px}
+.dv .zone::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed rgba(30,41,59,.25)}
+.dv .barp{position:absolute;top:4px;bottom:4px;border-radius:4px;background:linear-gradient(90deg,#6B85F2,var(--blue))}
+.dv .barn{position:absolute;top:4px;bottom:4px;border-radius:4px;background:linear-gradient(270deg,#E38A86,var(--red));right:50%}
+.dv .vv{font-family:Georgia,serif;font-size:15px;font-weight:700;color:var(--blue);text-align:right}
+.dv .vv.neg{color:var(--red)}
+
+/* 结论页 */
+.concl{display:flex;flex-direction:column;gap:11px}
+.concl .cc{border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:8px;background:var(--bg2);padding:11px 14px}
+.concl .cc h4{font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.concl .cc h4 .map{font-size:9.5px;font-weight:600;letter-spacing:.08em;color:var(--blue);background:var(--blue-soft);border:1px solid var(--blue-border);border-radius:20px;padding:1px 8px}
+.concl .cc p{font-size:12px;line-height:1.6;color:var(--text2)}
+.concl .cc p b{color:var(--blue)}
+.sugg{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.sugg .sg{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:#fff}
+.sugg .sg h4{font-size:13.5px;font-weight:700;color:var(--text);margin:8px 0 4px}
+.sugg .sg p{font-size:11.5px;line-height:1.6;color:var(--text2)}
+
+/* 仪表环 */
+.gauge{position:relative;display:flex;flex-direction:column;align-items:center}
+.gauge .gv{position:absolute;top:50%;left:50%;transform:translate(-50%,-58%);font-family:Georgia,serif;font-size:22px;font-weight:700;color:var(--text)}
+.gauge .gl{position:absolute;top:50%;left:50%;transform:translate(-50%,18%);font-size:9.5px;color:var(--text3);letter-spacing:.1em}
+
+/* ========== 结尾页 ========== */
+.s.end{display:grid;grid-template-columns:1fr 1fr;padding:0}
+.end-l{background:var(--blue-dark);padding:52px 44px 52px 76px;display:flex;flex-direction:column;justify-content:space-between}
+.end-l .et{font-size:10.5px;letter-spacing:.24em;color:rgba(255,255,255,.5);font-weight:600}
+.end-l h2{font-family:"Noto Serif SC",serif;font-size:58px;font-weight:900;color:#fff;line-height:1.15}
+.end-l .es{margin-top:14px;font-size:13px;letter-spacing:.3em;color:rgba(255,255,255,.65)}
+.end-l .sig{font-size:12px;line-height:1.8;color:rgba(255,255,255,.55)}
+.end-l .sig b{color:rgba(255,255,255,.85)}
+.end-r{background:#fff;padding:48px 76px 48px 44px;display:flex;flex-direction:column}
+.end-r .et2{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.2em;color:var(--text3);font-weight:600}
+.tks{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:18px 0}
+.tk{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--bg2)}
+.tk .n{font-family:Georgia,serif;font-size:20px;font-weight:700;color:var(--blue);line-height:1.1}
+.tk h4{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;font-family:"Noto Serif SC",serif}
+.tk p{font-size:12px;line-height:1.65;color:var(--text2)}
+.tk p b{color:var(--blue)}
+.tk p .neg{color:var(--red);font-weight:600}
+.end-r .ft{font-size:10.5px;letter-spacing:.18em;color:var(--text3);font-weight:600;display:flex;align-items:center;gap:10px}
+.end-r .ft i{width:22px;height:1.5px;background:var(--text3);display:inline-block;font-style:normal}
+</style>
+</head>
+<body>
+<div id="deck">
+
+<!-- ===== S1 封面 ===== -->
+<section class="s cover on">
+  <div class="cv-deco" aria-hidden="true"></div>
+  <div class="cv-top a" style="--d:0"><span><b>民航统计研究汇报</b> · RESEARCH BRIEFING</span><span>2026</span></div>
+  <div class="cv-mid">
+    <span class="k a" style="--d:80"><i></i>CONCENTRATION · STRUCTURE · BALANCE</span>
+    <h1 class="a" style="--d:200">机场旅客吞吐量的<br>集中度测度与结构演变研究</h1>
+    <p class="sub a" style="--d:340">基于 2018—2025 年全国民用运输机场逐机场截面数据，运用<b>基尼系数、泰尔指数及其分解、赫芬达尔指数与洛伦兹曲线</b>，系统测度机场业务量的集中程度与结构演变，回答三个问题：集中度有多高、由什么驱动、结构是否均衡——为机场网络优化与区域均衡提供量化依据。</p>
+  </div>
+  <div class="cv-bot a" style="--d:460">
+    <div><div class="lb">数据来源</div><div class="vl">中国民航局 历年机场生产统计公报</div></div>
+    <div><div class="lb">研究对象</div><div class="vl">全国运输机场 · 266 个（2025）</div></div>
+    <div><div class="lb">测度方法</div><div class="vl">基尼 · 泰尔分解 · HHI · 洛伦兹曲线</div></div>
+    <div><div class="lb">汇报单位</div><div class="vl">民航统计研究课题组</div></div>
+  </div>
+</section>
+
+<!-- ===== S2 汇报框架 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>AGENDA · 汇报框架</div><h2>四步闭环：从提出问题到回应问题</h2></div>
+      <p class="lead a" style="--d:140">先立问题，再亮方法，用四个发现回答三问，最后落为四条建议</p>
+    </div>
+    <div class="pg-b" style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+      <div class="ag-grid">
+        <div class="ag a" style="--d:160">
+          <div class="n">01</div>
+          <h4>背景与问题</h4>
+          <div class="en">WHY &amp; QUESTIONS</div>
+          <p>规模扩张与分布失衡并存，提出三个研究问题</p>
+          <div class="mini"><span>规模 vs 集中的张力</span><span>三问：多高 · 何驱动 · 是否均衡</span></div>
+        </div>
+        <div class="ag a" style="--d:260">
+          <div class="n">02</div>
+          <h4>数据与方法</h4>
+          <div class="en">DATA &amp; METRICS</div>
+          <p>八个年度截面、三类不平等指标、两个分解维度</p>
+          <div class="mini"><span>2018—2025 · 233→266 个机场</span><span>三类指标 · 数据三重核验</span></div>
+        </div>
+        <div class="ag a" style="--d:360">
+          <div class="n">03</div>
+          <h4>研究发现</h4>
+          <div class="en">FINDINGS</div>
+          <p>四个发现层层递进，逐一回应三问</p>
+          <div class="mini"><span>总体：先降后升创新高</span><span>结构：组间主导 · 地区内矛盾</span><span>梯队：长尾收缩 · 货邮更集中</span></div>
+        </div>
+        <div class="ag a" style="--d:460">
+          <div class="n">04</div>
+          <h4>结论与建议</h4>
+          <div class="en">CONCLUSIONS</div>
+          <p>三条结论回应三问，四条建议分层落地</p>
+          <div class="mini"><span>分层协同 · 扶持长尾</span><span>强化枢纽 · 常态监测</span></div>
+        </div>
+      </div>
+      <div class="band a" style="--d:560">
+        <span class="bt"><i></i>逻辑主线</span>
+        <div class="loop" style="flex:1">
+          <div class="node"><b>提出三问</b><span>背景与问题</span></div>
+          <div class="ar">→</div>
+          <div class="node"><b>测度与分解</b><span>数据与方法</span></div>
+          <div class="ar">→</div>
+          <div class="node"><b>四大发现</b><span>总体·结构·梯队·客货</span></div>
+          <div class="ar">→</div>
+          <div class="node"><b>三结论</b><span>回应三问</span></div>
+          <div class="ar">→</div>
+          <div class="node"><b>四建议</b><span>对策闭环</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S3 背景与问题 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>01 · 背景与问题</div><h2>规模持续扩张，业务量却高度集中</h2></div>
+      <p class="lead a" style="--d:140">2025 年中国民航旅客运输量 7.70 亿人次、境内运输机场 270 个；但业务量分布高度不均，直接左右时刻、补贴与投资配置效率</p>
+    </div>
+    <div class="pg-b" style="display:flex;flex-direction:column;justify-content:space-between;gap:13px">
+      <div class="tiles">
+        <div class="tile a" style="--d:160"><div class="num">7.70<small> 亿人次</small></div><div class="lb">2025 全行业旅客运输量 · 同比 +5.5%</div></div>
+        <div class="tile a" style="--d:220"><div class="num">270<small> 个</small></div><div class="lb">2025 境内运输机场总数</div></div>
+        <div class="tile warn a" style="--d:280"><div class="num">83.74<small>%</small></div><div class="lb">41 个千万级机场吞吐量占比</div></div>
+        <div class="tile warn a" style="--d:340"><div class="num">&lt;4<small>%</small></div><div class="lb">100万以下小机场合计占比</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div class="card a" style="--d:420">
+          <div class="h3"><span class="no">1</span>集中度有多高</div>
+          <p class="body">总体集中度处于什么水平？疫情冲击后是回落还是反弹？是否存在长期演变方向？</p>
+        </div>
+        <div class="card a" style="--d:500">
+          <div class="h3"><span class="no">2</span>由什么驱动</div>
+          <p class="body">集中度来自枢纽层级之间，还是地区之间？哪一类机场在拉动集中度回升？</p>
+        </div>
+        <div class="card a" style="--d:580">
+          <div class="h3"><span class="no">3</span>是否均衡</div>
+          <p class="body">不同规模梯队恢复是否同步？客货两类业务集中度有何差异？政策应如何应对？</p>
+        </div>
+      </div>
+      <div class="band a" style="--d:660">
+        <span class="bt"><i></i>研究路径</span>
+        <div class="flow">
+          <span class="st">构建 2018—2025 八期截面</span><span class="ar">→</span>
+          <span class="st">集中度测度</span><span class="ar">→</span>
+          <span class="st">枢纽层级 × 地区 双维分解</span><span class="ar">→</span>
+          <span class="st">梯队与客货对照</span><span class="ar">→</span>
+          <span class="st">结论与建议</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S4 数据与方法 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>02 · 数据与方法</div><h2>八期截面数据，三类指标，两个分解维度</h2></div>
+      <p class="lead a" style="--d:140">数据三重核验：汇总差异为 0、双源交叉一致、特征值与公报完全一致</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.05fr 1fr 1fr;gap:14px;align-content:stretch">
+      <div class="card alt a" style="--d:160;display:flex;flex-direction:column">
+        <div class="h3"><span class="no">1</span>数据基础</div>
+        <p class="body" style="margin-bottom:8px">中国民航局历年<b>《全国民用运输机场生产统计公报》</b>及逐机场排名附件：</p>
+        <p class="body" style="margin-bottom:8px">2019 / 2020 / 2022 / 2023 / 2025 年取自当年附件，2018 / 2021 / 2024 年取自次年附件<b>"上年同期"列</b>，形成八个完整年度截面。</p>
+        <div style="display:flex;gap:10px;margin:10px 0">
+          <div class="card blue" style="flex:1;text-align:center;padding:10px 6px"><div class="num" style="font-size:22px">233 → 266</div><div class="lb" style="margin-top:3px">机场数（2018→2025）</div></div>
+          <div class="card blue" style="flex:1;text-align:center;padding:10px 6px"><div class="num" style="font-size:22px">12.65 → 15.29</div><div class="lb" style="margin-top:3px">旅客合计（亿人次）</div></div>
+        </div>
+        <p class="body" style="margin-top:auto">口径：机场旅客吞吐量（人次），当年无数据机场按缺失处理。</p>
+      </div>
+      <div class="card a" style="--d:280;display:flex;flex-direction:column">
+        <div class="h3"><span class="no">2</span>测度指标</div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-evenly;gap:8px;margin-top:2px">
+          <div class="card blue" style="padding:9px 12px"><p class="body"><b class="hl">基尼系数 G</b><br>洛伦兹曲线积分，0—1 刻画总体不均程度</p></div>
+          <div class="card blue" style="padding:9px 12px"><p class="body"><b class="hl">泰尔指数 T</b><br>可分解为组间＋组内，用于结构归因（核心工具）</p></div>
+          <div class="card blue" style="padding:9px 12px"><p class="body"><b class="hl">赫芬达尔指数 HHI</b><br>份额平方和，刻画头部机场主导力</p></div>
+          <div class="card blue" style="padding:9px 12px"><p class="body"><b class="hl">洛伦兹曲线</b><br>可视化长尾分布形态与逐年变化</p></div>
+        </div>
+      </div>
+      <div class="card a" style="--d:400;display:flex;flex-direction:column">
+        <div class="h3"><span class="no">3</span>分组口径</div>
+        <p class="body" style="margin-bottom:7px"><b>枢纽层级</b>（发改基础〔2017〕290 号）：</p>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <span class="card blue" style="flex:1;text-align:center;padding:8px 4px;font-size:11.5px;color:var(--text);font-weight:600">国际航空枢纽<br><span style="color:var(--blue);font-weight:700">10 城 13 场</span></span>
+          <span class="card blue" style="flex:1;text-align:center;padding:8px 4px;font-size:11.5px;color:var(--text);font-weight:600">区域枢纽<br><span style="color:var(--blue);font-weight:700">29 城</span></span>
+          <span class="card blue" style="flex:1;text-align:center;padding:8px 4px;font-size:11.5px;color:var(--text);font-weight:600">非枢纽<br><span style="color:var(--blue);font-weight:700">其余机场</span></span>
+        </div>
+        <p class="body" style="margin-bottom:7px"><b>四大地区</b>：东部 / 中部 / 西部 / 东北（与公报表 3 口径一致）。</p>
+        <p class="body" style="margin-bottom:7px"><b>梯队口径</b>：千万级以上 / 200 万—1000 万 / 200 万以下。</p>
+        <div class="card alt" style="padding:9px 12px;margin-top:auto"><p class="body" style="font-size:12px"><b>质量核验</b>：汇总合计与公报差异为 0 · 2019 年双源交叉一致 · 千万级机场数与增速分布同公报完全一致</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S5 发现1 总体集中度 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>03 · 研究发现｜发现 1</div><h2>总体集中度：先降后升，疫后创新高</h2></div>
+      <p class="lead a" style="--d:140">基尼系数与泰尔指数同步走出 U 形：2021 年触底，此后逐年回升，2025 年双双创观测期新高</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.62fr 1fr;gap:14px">
+      <div class="chart-card a" style="--d:180;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <svg viewBox="0 0 560 290" style="width:100%;flex:1;min-height:0" role="img" aria-label="基尼系数与泰尔指数变化趋势图">
+          <!-- 疫情冲击期底纹 -->
+          <rect x="164" y="20" width="200" height="220" fill="rgba(30,41,59,.045)"/>
+          <text x="264" y="34" text-anchor="middle" class="ann" fill="#94A3B8">疫情冲击期</text>
+          <!-- 网格与左轴 -->
+          <line x1="64" y1="45.6" x2="532" y2="45.6" class="gridl"/><text x="56" y="49" text-anchor="end" class="lbl">0.82</text>
+          <line x1="64" y1="88.8" x2="532" y2="88.8" class="gridl"/><text x="56" y="92" text-anchor="end" class="lbl">0.81</text>
+          <line x1="64" y1="132" x2="532" y2="132" class="gridl"/><text x="56" y="135" text-anchor="end" class="lbl">0.80</text>
+          <line x1="64" y1="175.2" x2="532" y2="175.2" class="gridl"/><text x="56" y="178" text-anchor="end" class="lbl">0.79</text>
+          <line x1="64" y1="218.4" x2="532" y2="218.4" class="gridl"/><text x="56" y="221" text-anchor="end" class="lbl">0.78</text>
+          <!-- 右轴（泰尔） -->
+          <text x="540" y="189" class="lbl" text-anchor="start">1.30</text>
+          <text x="540" y="135" class="lbl" text-anchor="start">1.35</text>
+          <text x="540" y="81" class="lbl" text-anchor="start">1.40</text>
+          <!-- 基尼面积与折线 -->
+          <path d="M64,87.1 L131,126.8 L198,170 L265,198.5 L331,171.3 L398,106.5 L465,73.3 L532,58.1 L532,240 L64,240 Z" fill="rgba(68,102,238,.10)"/>
+          <polyline points="64,65.9 131,115.5 198,183.8 265,222.2 331,197.3 398,113.4 465,65.7 532,44.7" fill="none" stroke="rgba(68,102,238,.45)" stroke-width="1.8" stroke-dasharray="5 4"/>
+          <polyline points="64,87.1 131,126.8 198,170 265,198.5 331,171.3 398,106.5 465,73.3 532,58.1" fill="none" stroke="#4466EE" stroke-width="2.6"/>
+          <!-- 关键点 -->
+          <circle cx="64" cy="87.1" r="4" fill="#fff" stroke="#4466EE" stroke-width="2"/>
+          <circle cx="265" cy="198.5" r="4.5" fill="#fff" stroke="#4466EE" stroke-width="2.2"/>
+          <circle cx="532" cy="58.1" r="4.5" fill="#4466EE" stroke="#fff" stroke-width="2"/>
+          <text x="64" y="72" text-anchor="middle" class="vlbl">0.8104</text>
+          <text x="265" y="219" text-anchor="middle" class="vlbl">0.7846 谷底</text>
+          <text x="528" y="42" text-anchor="end" class="vlbl">0.8171 新高</text>
+          <!-- X 轴 -->
+          <line x1="64" y1="240" x2="532" y2="240" class="axis"/>
+          <text x="64" y="258" text-anchor="middle" class="lbl">2018</text><text x="131" y="258" text-anchor="middle" class="lbl">2019</text>
+          <text x="198" y="258" text-anchor="middle" class="lbl">2020</text><text x="265" y="258" text-anchor="middle" class="lbl">2021</text>
+          <text x="331" y="258" text-anchor="middle" class="lbl">2022</text><text x="398" y="258" text-anchor="middle" class="lbl">2023</text>
+          <text x="465" y="258" text-anchor="middle" class="lbl">2024</text><text x="532" y="258" text-anchor="middle" class="lbl">2025</text>
+          <!-- 图例 -->
+          <line x1="368" y1="282" x2="392" y2="282" stroke="#4466EE" stroke-width="2.6"/><text x="397" y="285.5" class="lbl2">基尼系数（左轴）</text>
+          <line x1="66" y1="282" x2="90" y2="282" stroke="rgba(68,102,238,.45)" stroke-width="1.8" stroke-dasharray="5 4"/><text x="95" y="285.5" class="lbl2">泰尔指数（右轴）</text>
+        </svg>
+        <div class="cap">图 1　基尼系数与泰尔指数变化趋势（2018—2025）</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:11px;min-height:0">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div class="tile a" style="--d:240;padding:11px 12px"><div class="num" style="font-size:24px">0.8171</div><div class="lb" style="margin-top:4px">2025 基尼<br>观测期新高</div></div>
+          <div class="tile a" style="--d:300;padding:11px 12px"><div class="num" style="font-size:24px;color:var(--text)">0.7846</div><div class="lb" style="margin-top:4px">2021 谷底<br>阶段低位</div></div>
+          <div class="tile a" style="--d:360;padding:11px 12px"><div class="num" style="font-size:24px">+0.0325</div><div class="lb" style="margin-top:4px">2021→2025<br>回升幅度</div></div>
+        </div>
+        <div class="card blue a" style="--d:420">
+          <div class="h3" style="font-size:15px">为什么先降后升</div>
+          <p class="body" style="font-size:12.5px"><b>疫情期</b>：国际航线停摆、出行半径收窄，对大型枢纽打击更大，一度压低集中度；<br><b>恢复期</b>：大枢纽凭腹地经济、航线网络与时刻资源率先修复，2025 年集中度已<b class="hl">反超疫情前</b>。</p>
+        </div>
+        <div class="card a" style="--d:500;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center">
+          <div class="h3" style="font-size:15px">新高背后是"长尾化"</div>
+          <p class="body" style="font-size:12.5px">HHI 由 0.0286（2018）持续降至低点 <b>0.0215</b>（2022），2025 年回升至 0.0245 仍未及疫前——<b>头部相对份额不升反降</b>；而基尼、泰尔双创新高——说明集中度上升来自<b class="hl">中小机场差距扩大、下尾部持续收缩</b>，头尾断层在拉大。洛伦兹曲线上，2025 年曲线位于最外侧，长尾特征逐年强化。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S6 发现2 结构来源 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>03 · 研究发现｜发现 2</div><h2>结构来源：组间差异主导，矛盾在地区内部</h2></div>
+      <p class="lead a" style="--d:140">泰尔指数分解显示：约 85% 的集中度来自枢纽层级之间，四大地区之间差异贡献仅约 15%</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1fr 1.5fr;gap:14px">
+      <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+        <div class="card a" style="--d:180">
+          <div class="cbar">
+            <div class="row1"><span class="t">枢纽层级 · 组间贡献</span><span class="v">85.57%</span></div>
+            <div class="track"><div class="fill" style="width:85.57%"></div></div>
+            <div class="sub">2018—2025 稳定在 84.03%—86.57%，集中度的主体来源</div>
+          </div>
+          <div class="cbar rg" style="margin-bottom:0">
+            <div class="row1"><span class="t">四大地区 · 间贡献</span><span class="v neg">15.65%</span></div>
+            <div class="track"><div class="fill" style="width:15.65%"></div></div>
+            <div class="sub">区间仅 12.37%—15.65%，远低于枢纽层级贡献</div>
+          </div>
+        </div>
+        <div class="card alt a" style="--d:260;padding:10px 14px">
+          <span class="lb" style="display:block;margin-bottom:4px">2025 四大地区旅客吞吐量占比</span>
+          <span class="body" style="font-size:12.5px"><b>东部 52.45%</b> · 西部 30.64% · 中部 10.70% · 东北 6.20%</span>
+        </div>
+        <div class="card dark a" style="--d:300;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center">
+          <div class="h3" style="font-size:15px">地区内部才是主战场——以西部为例</div>
+          <p class="body" style="font-size:12.5px">西部 <b style="color:#fff">134 个机场</b>合计仅占全国 <b style="color:#fff">30.64%</b> 吞吐量，其中成都、昆明、西安、重庆、乌鲁木齐 5 城 <b style="color:#fff">6 个枢纽机场</b>即承接西部 <b style="color:#FFD666">57.1%</b> —— 无论东部还是西部，都是"少数核心枢纽 + 大量小机场"的内部断层格局。</p>
+          <p class="body" style="font-size:12.5px;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15)">因此均衡政策的着力点不在"缩小地区均值差"，而在<b style="color:#FFD666">补齐地区内部的小机场断层</b>。</p>
+        </div>
+      </div>
+      <div class="chart-card a" style="--d:220;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <svg viewBox="0 0 560 290" style="width:100%;flex:1;min-height:0" role="img" aria-label="按枢纽功能分类的旅客吞吐量结构堆叠图">
+          <!-- 图例 -->
+          <rect x="66" y="8" width="11" height="11" rx="2" fill="#4466EE"/><text x="82" y="17.5" class="lbl2">国际枢纽</text>
+          <rect x="146" y="8" width="11" height="11" rx="2" fill="#9AAAF5"/><text x="162" y="17.5" class="lbl2">区域枢纽</text>
+          <rect x="226" y="8" width="11" height="11" rx="2" fill="#D5DCEC"/><text x="242" y="17.5" class="lbl2">非枢纽</text>
+          <!-- 2025 虚线基准 -->
+          <line x1="40" y1="20" x2="545" y2="20" class="gridl"/>
+          <!-- 2018 -->
+          <g><rect x="31" y="20" width="38" height="103.2" fill="#4466EE"/><rect x="31" y="123.2" width="38" height="92.1" fill="#9AAAF5"/><rect x="31" y="215.3" width="38" height="34.7" fill="#D5DCEC"/>
+          <text x="50" y="46" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">44.87</text></g>
+          <!-- 2019 -->
+          <g><rect x="99" y="20" width="38" height="100.7" fill="#4466EE"/><rect x="99" y="120.7" width="38" height="91.1" fill="#9AAAF5"/><rect x="99" y="211.8" width="38" height="38.2" fill="#D5DCEC"/></g>
+          <!-- 2020 -->
+          <g><rect x="167" y="20" width="38" height="96.1" fill="#4466EE"/><rect x="167" y="116.1" width="38" height="94.2" fill="#9AAAF5"/><rect x="167" y="210.4" width="38" height="39.7" fill="#D5DCEC"/></g>
+          <!-- 2021 -->
+          <g><rect x="235" y="20" width="38" height="94.5" fill="#4466EE"/><rect x="235" y="114.5" width="38" height="93.2" fill="#9AAAF5"/><rect x="235" y="207.7" width="38" height="42.3" fill="#D5DCEC"/></g>
+          <!-- 2022 谷底 -->
+          <g><rect x="303" y="20" width="38" height="91.4" fill="#4466EE"/><rect x="303" y="111.4" width="38" height="97.2" fill="#9AAAF5"/><rect x="303" y="208.6" width="38" height="41.4" fill="#D5DCEC"/>
+          <text x="322" y="46" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">39.73</text></g>
+          <!-- 2023 -->
+          <g><rect x="371" y="20" width="38" height="101.2" fill="#4466EE"/><rect x="371" y="121.2" width="38" height="90.2" fill="#9AAAF5"/><rect x="371" y="211.4" width="38" height="38.6" fill="#D5DCEC"/></g>
+          <!-- 2024 -->
+          <g><rect x="439" y="20" width="38" height="104.2" fill="#4466EE"/><rect x="439" y="124.2" width="38" height="88.3" fill="#9AAAF5"/><rect x="439" y="212.5" width="38" height="37.5" fill="#D5DCEC"/></g>
+          <!-- 2025 -->
+          <g><rect x="507" y="20" width="38" height="105.6" fill="#4466EE"/><rect x="507" y="125.6" width="38" height="86.4" fill="#9AAAF5"/><rect x="507" y="212" width="38" height="38" fill="#D5DCEC"/>
+          <text x="526" y="46" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">45.91</text></g>
+          <!-- 2022 谷底标注 -->
+          <text x="322" y="284" text-anchor="middle" class="ann" fill="#4466EE" font-weight="700">谷底</text>
+          <!-- X 轴 -->
+          <line x1="40" y1="250" x2="545" y2="250" class="axis"/>
+          <text x="50" y="266" text-anchor="middle" class="lbl">2018</text><text x="118" y="266" text-anchor="middle" class="lbl">2019</text>
+          <text x="186" y="266" text-anchor="middle" class="lbl">2020</text><text x="254" y="266" text-anchor="middle" class="lbl">2021</text>
+          <text x="322" y="266" text-anchor="middle" class="lbl">2022</text><text x="390" y="266" text-anchor="middle" class="lbl">2023</text>
+          <text x="458" y="266" text-anchor="middle" class="lbl">2024</text><text x="526" y="266" text-anchor="middle" class="lbl">2025</text>
+          <text x="50" y="284" text-anchor="middle" class="ann" fill="#94A3B8">疫前 44.87</text>
+          <text x="526" y="284" text-anchor="middle" class="ann" fill="#94A3B8">疫后 45.91</text>
+        </svg>
+        <div class="cap">图 2　按枢纽功能分类的旅客吞吐量结构（2018—2025，%）　·　13 个国际枢纽机场（不足全国机场数的 5%）承接 45.91% 旅客，北上广三城占 22.44%</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S7 发现3 梯队分化 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>03 · 研究发现｜发现 3</div><h2>梯队分化：大机场恢复快，长尾持续收缩</h2></div>
+      <p class="lead a" style="--d:140">2025 年增速按规模呈明显梯度；2019—2025 年复合增速中位数随规模递减，小机场过半负增长</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.35fr 1fr;gap:14px">
+      <div class="card a" style="--d:180;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <div class="h3">2025 年各梯队机场同比增速分布（个）</div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0">
+          <table style="font-size:13.5px">
+            <thead><tr><th class="rl">梯队（机场数）</th><th>≥10%</th><th>5%—10%</th><th>0—5%</th><th>负增长</th></tr></thead>
+            <tbody>
+              <tr class="hl"><td class="rl">千万级以上（41）</td><td>2</td><td>13</td><td>19</td><td>7</td></tr>
+              <tr><td class="rl">200万—1000万（38）</td><td>17</td><td>11</td><td>5</td><td>5</td></tr>
+              <tr class="hl2"><td class="rl">200万以下（187）</td><td>67</td><td>19</td><td>22</td><td><span class="neg">74</span></td></tr>
+              <tr><td class="rl">全部（266）</td><td>86</td><td>43</td><td>46</td><td><span class="neg">86</span></td></tr>
+            </tbody>
+          </table>
+          <div class="cap" style="margin-top:9px">表 1　另有 5 个当年新增机场无上年基数，不参与增速统计；200 万以下梯队中负增长机场占该梯队有增速机场的 40.7%</div>
+        </div>
+        <div class="band">
+          <span class="bt"><i></i>表内看点</span>
+          <span class="bc">千万级机场 34/41 保持正增长（仅 7 个负增长），其中 15 个增速超 5%；小机场梯队虽有 67 个增速超 10%，但<b>负增长多达 74 个</b>，两极并存、整体收缩。</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:11px;min-height:0">
+        <div class="card a" style="--d:300">
+          <div class="h3">2019—2025 复合增速中位数</div>
+          <div class="dv">
+            <div class="nm">千万级以上<small>2019 年 37 个</small></div>
+            <div class="zone"><div class="barp" style="left:50%;width:23.6%"></div></div>
+            <div class="vv">+1.05%</div>
+          </div>
+          <div class="dv">
+            <div class="nm">100万—1000万<small>57 个</small></div>
+            <div class="zone"><div class="barp" style="left:50%;width:17.1%"></div></div>
+            <div class="vv">+0.76%</div>
+          </div>
+          <div class="dv">
+            <div class="nm">100万以下<small>120 个</small></div>
+            <div class="zone"><div class="barn" style="width:36.2%"></div></div>
+            <div class="vv neg">−1.61%</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <span class="card blue" style="flex:1;text-align:center;padding:7px 4px;font-size:11px;color:var(--text)">千万级负增长占比<br><b style="color:var(--blue);font-size:15px">24.3%</b></span>
+            <span class="card blue" style="flex:1;text-align:center;padding:7px 4px;font-size:11px;color:var(--text)">100万以下负增长占比<br><b style="color:var(--red);font-size:15px">53.3%</b></span>
+          </div>
+          <div class="cap">图 3　复合增速基于 214 个两期均有数据的机场测算</div>
+        </div>
+        <div class="card dark a" style="--d:420;flex:1;min-height:0;overflow:hidden">
+          <div class="h3" style="font-size:15px">发现 3 小结</div>
+          <p class="body" style="font-size:12.5px">规模越小的机场恢复越差、收缩越明显——<b style="color:#fff">长尾机场与头部机场的差距随时间持续拉大</b>，印证发现 1 的"长尾化"集中。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S8 发现4 货邮对照 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>03 · 研究发现｜发现 4</div><h2>客货对照：货邮更集中，政策取向应分化</h2></div>
+      <p class="lead a" style="--d:140">货邮基尼系数长期高于旅客约 0.10，货运更依赖国际航线网络与货运枢纽</p>
+    </div>
+    <div class="pg-b" style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card a" style="--d:180">
+          <div class="h3"><span class="tag">旅客</span>集中度相对较低、长尾化加深</div>
+          <div style="display:flex;align-items:center;gap:22px;margin-top:6px">
+            <div class="gauge">
+              <svg width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="旅客基尼系数0.8171环形图">
+                <circle cx="64" cy="64" r="52" fill="none" stroke="rgba(30,41,59,.08)" stroke-width="11"/>
+                <circle cx="64" cy="64" r="52" fill="none" stroke="#4466EE" stroke-width="11" stroke-linecap="round" stroke-dasharray="267 326.7" transform="rotate(-90 64 64)"/>
+              </svg>
+              <div class="gv">0.8171</div><div class="gl">基尼 2025</div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--line);padding-bottom:7px"><span class="body" style="font-size:12.5px">Top5 机场占比</span><span class="num" style="font-size:19px">23.71%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--line);padding-bottom:7px"><span class="body" style="font-size:12.5px">北上广三城占比</span><span class="num" style="font-size:19px">22.44%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="body" style="font-size:12.5px">2019—2025 基尼区间</span><span style="font-size:12px;color:var(--text2);font-weight:600">0.7846—0.8171</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card a" style="--d:300;border-color:var(--blue-border);background:var(--blue-soft)">
+          <div class="h3"><span class="tag">货邮</span>集中度显著更高、长期稳定</div>
+          <div style="display:flex;align-items:center;gap:22px;margin-top:6px">
+            <div class="gauge">
+              <svg width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="货邮基尼系数0.9142环形图">
+                <circle cx="64" cy="64" r="52" fill="none" stroke="rgba(30,41,59,.08)" stroke-width="11"/>
+                <circle cx="64" cy="64" r="52" fill="none" stroke="#1A2D6D" stroke-width="11" stroke-linecap="round" stroke-dasharray="298.7 326.7" transform="rotate(-90 64 64)"/>
+              </svg>
+              <div class="gv">0.9142</div><div class="gl">基尼 2025</div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--blue-border);padding-bottom:7px"><span class="body" style="font-size:12.5px">Top5 机场占比</span><span class="num" style="font-size:19px;color:var(--blue-dark)">51.59%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--blue-border);padding-bottom:7px"><span class="body" style="font-size:12.5px">北上广三城占比</span><span class="num" style="font-size:19px;color:var(--blue-dark)">40.69%</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="body" style="font-size:12.5px">2019—2025 基尼区间</span><span style="font-size:12px;color:var(--text2);font-weight:600">0.9093—0.9230</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="band a" style="--d:440">
+        <span class="bt"><i></i>政策含义</span>
+        <span class="bc">货运资源宜<b>聚焦少数国际货运枢纽</b>，做强国际航线网络与集散能力；旅客业务则需<b>兼顾网络普惠性</b>，在枢纽效率与支线服务之间保持平衡——两类业务不能用同一把尺子配置资源。</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S9 结论与建议 ===== -->
+<section class="s">
+  <div class="pg-s">
+    <div class="pg-h">
+      <div class="a" style="--d:0"><div class="k"><i></i>04 · 结论与建议</div><h2>三条结论回应三问，四条建议分层落地</h2></div>
+      <p class="lead a" style="--d:140">从"测得准"到"用得上"：结构分解指标可直接纳入机场网络运行监测</p>
+    </div>
+    <div class="pg-b" style="display:grid;grid-template-columns:1.15fr 1fr;gap:16px">
+      <div class="concl" style="justify-content:center">
+        <div class="cc a" style="--d:180">
+          <h4>结论一 · 总体"先降后升"，疫后创新高<span class="map">回应问题 1</span></h4>
+          <p>2025 年基尼系数 <b>0.8171</b>、泰尔指数 <b>1.4308</b> 均为观测期最高；机场网络<b>"头部集中、长尾收缩"</b>格局进一步强化。</p>
+        </div>
+        <div class="cc a" style="--d:300">
+          <h4>结论二 · 组间主导：枢纽层级是集中度主源<span class="map">回应问题 2</span></h4>
+          <p>枢纽层级组间贡献稳定在 <b>84% 以上</b>，国际航空枢纽份额 <b>45.91%</b> 为疫后回升主驱动；地区间贡献仅约 <b>15%</b>，主要矛盾在地区内部。</p>
+        </div>
+        <div class="cc a" style="--d:420">
+          <h4>结论三 · 长尾收缩，客货集中度分化<span class="map">回应问题 3</span></h4>
+          <p>100万以下机场 2019—2025 复合增速中位数 <span class="neg" style="color:var(--red);font-weight:700">−1.61%</span>、超半数负增长；货邮基尼 <b>0.9142</b> 高于旅客，客货资源宜分策配置。</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:center;gap:11px">
+        <div class="sugg">
+          <div class="sg a" style="--d:240">
+            <span class="no">1</span>
+            <h4>分层协同布局</h4>
+            <p>坚持"枢纽—区域—支线"分层协同，明确非枢纽机场的区域服务功能定位，不盲目对标大枢纽。</p>
+          </div>
+          <div class="sg a" style="--d:320">
+            <span class="no">2</span>
+            <h4>扶持长尾机场</h4>
+            <p>时刻配置、航线补贴与基本航空服务计划向支线机场倾斜，遏制业务量持续收缩。</p>
+          </div>
+          <div class="sg a" style="--d:400">
+            <span class="no">3</span>
+            <h4>强化国际枢纽</h4>
+            <p>依托北上广、成渝枢纽优化国际航线网络与中转衔接，提升枢纽国际竞争力。</p>
+          </div>
+          <div class="sg a" style="--d:480">
+            <span class="no">4</span>
+            <h4>常态化监测</h4>
+            <p>将集中度与结构分解指标纳入机场网络运行常态化监测，为布局规划与资源配置提供量化依据。</p>
+          </div>
+        </div>
+        <div class="band a" style="--d:560">
+          <span class="bt"><i></i>闭环</span>
+          <span class="bc">三问有答：<b>多高</b>→0.8171 新高；<b>何驱动</b>→枢纽组间 85%；<b>是否均衡</b>→长尾收缩、客货分策。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== S10 结尾页 ===== -->
+<section class="s end">
+  <div class="end-l">
+    <div class="et a" style="--d:0">CONCENTRATION · STRUCTURE · BALANCE</div>
+    <div>
+      <h2 class="a" style="--d:160">谢谢</h2>
+      <div class="es a" style="--d:280">敬请批评指正</div>
+    </div>
+    <div class="sig a" style="--d:380"><b>机场旅客吞吐量的集中度测度与结构演变研究</b><br>数据来源：中国民航局历年《全国民用运输机场生产统计公报》及排名附件 · 2018—2025 八期截面</div>
+  </div>
+  <div class="end-r">
+    <div class="et2 a" style="--d:0"><span>KEY TAKEAWAYS</span><span>03 要点</span></div>
+    <div class="tks">
+      <div class="tk a" style="--d:140"><div class="n">01</div><div><h4>总体</h4><p>集中度"先降后升"，2025 年基尼 <b>0.8171</b> 创新高；头部份额未扩张，<b>长尾收缩</b>才是推手。</p></div></div>
+      <div class="tk a" style="--d:260"><div class="n">02</div><div><h4>结构</h4><p>枢纽层级组间贡献 <b>85.57%</b>、地区间仅约 15%——均衡政策要下沉到<b>地区内部</b>而非均衡地区均值。</p></div></div>
+      <div class="tk a" style="--d:380"><div class="n">03</div><div><h4>对策</h4><p>分层协同布局 · 扶持长尾机场 · 强化国际枢纽 · 常态化监测，让集中度指标进入决策闭环。</p></div></div>
+    </div>
+    <div class="ft a" style="--d:500"><i></i>END OF PRESENTATION · 2026</div>
+  </div>
+</section>
+
+<!-- ===== 全局工具条 ===== -->
+<div class="bar bar-top"><span><b>民航统计研究汇报</b> · 集中度测度与结构演变</span><span>机场业务量集中度与区域均衡分析</span></div>
+<div class="bar bar-bot"><span>2018—2025 全国运输机场逐机场数据</span><span><span class="pg" id="pc">01</span> / <span id="pt">10</span></span></div>
+<nav class="dots" id="dn" aria-label="导航"></nav>
+
+</div>
+
+<script>
+(function(){
+  var dk=document.getElementById('deck'),ss=[].slice.call(dk.querySelectorAll('.s')),n=ss.length,c=0,busy=false;
+  document.getElementById('pt').textContent=String(n).padStart(2,'0');
+  var dn=document.getElementById('dn');
+  for(var i=0;i<n;i++){var b=document.createElement('button');b.setAttribute('aria-label','第'+(i+1)+'页');(function(j){b.addEventListener('click',function(){go(j)})})(i);dn.appendChild(b)}
+  var dots=[].slice.call(dn.children);
+  function go(i){if(i<0||i>=n||i===c||busy)return;busy=true;ss[c].classList.remove('on');c=i;ss[c].classList.add('on');dots.forEach(function(d,j){d.classList.toggle('on',j===c)});document.getElementById('pc').textContent=String(c+1).padStart(2,'0');setTimeout(function(){busy=false},500)}
+  function fit(){var s=Math.min(window.innerWidth/1280,window.innerHeight/720);dk.style.transform='translate(-50%,-50%) scale('+s+')'}
+  window.addEventListener('resize',fit);
+  document.addEventListener('keydown',function(e){var k=e.key;if(k==='ArrowRight'||k==='ArrowDown'||k==='PageDown'||k===' '||k==='Enter'){e.preventDefault();if(!busy)go(c+1)}else if(k==='ArrowLeft'||k==='ArrowUp'||k==='PageUp'){e.preventDefault();if(!busy)go(c-1)}else if(k==='Home'){e.preventDefault();go(0)}else if(k==='End'){e.preventDefault();go(n-1)}});
+  var wl=false;dk.addEventListener('wheel',function(e){e.preventDefault();if(wl)return;if(Math.abs(e.deltaY)>24){wl=true;go(e.deltaY>0?c+1:c-1);setTimeout(function(){wl=false},800)}},{passive:false});
+  var tx=null,ty=null;dk.addEventListener('touchstart',function(e){tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});dk.addEventListener('touchend',function(e){if(tx===null)return;var t=e.changedTouches[0],dx=t.clientX-tx,dy=t.clientY-ty;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy))go(dx<0?c+1:c-1);else if(Math.abs(dy)>60)go(dy<0?c+1:c-1);tx=null;ty=null},{passive:true});
+  fit();ss[0].classList.add('on');dots[0].classList.add('on');
+})();
+</script>
+</body>
+</html>
